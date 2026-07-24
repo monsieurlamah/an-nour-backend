@@ -1,0 +1,74 @@
+[project]
+name = "business-flow-suite-backend"
+version = "0.1.0"
+description = "Backend API for e-Boutique (Commerce OS) — FastAPI + MySQL + SQLAlchemy."
+authors = [{ name = "AnNour" }]
+readme = "README.md"
+requires-python = ">=3.11,<4.0"
+dependencies = [
+    "fastapi (>=0.118.0,<1.0.0)",
+    "uvicorn[standard] (>=0.37.0,<1.0.0)",
+    "sqlalchemy[asyncio] (>=2.0.36,<3.0.0)",
+    "alembic (>=1.14.0,<2.0.0)",
+    "greenlet (>=3.1.0,<4.0.0)",
+    "aiomysql (>=0.2.0,<1.0.0)",
+    "pydantic (>=2.9.0,<3.0.0)",
+    "pydantic-settings (>=2.6.0,<3.0.0)",
+    "email-validator (>=2.2.0,<3.0.0)",
+    "pyjwt (>=2.10.0,<3.0.0)",
+    "bcrypt (>=4.2.0,<5.0.0)",
+    "python-multipart (>=0.0.18,<1.0.0)",
+    "cloudinary (>=1.44.2,<2.0.0)",
+]
+
+[project.scripts]
+dev = "app.cli:dev"
+start = "app.cli:start"
+seed = "app.seeds.runner:main"
+qa = "app.cli:qa"
+check-overdue-creances = "app.cli:check_overdue_creances"
+
+[tool.poetry]
+packages = [{ include = "app" }]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "mysql: integration tests run against the real MySQL dev database (auto-skipped if unreachable).",
+]
+
+[tool.poetry.group.dev.dependencies]
+ruff = ">=0.7.0"
+pytest = "^9.1.1"
+pytest-asyncio = "^1.4.0"
+aiosqlite = "^0.22.1"
+httpx = "^0.28.1"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+# Alembic revision files are auto-generated; don't lint their long DDL lines.
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# `class X(str, enum.Enum)` is intentional (stable str/SQLAlchemy behaviour).
+ignore = ["UP042"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI uses these callables as argument defaults by design (B008 false positives).
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.Header",
+    "fastapi.Cookie",
+    "fastapi.File",
+    "fastapi.Form",
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0"]
+build-backend = "poetry.core.masonry.api"
