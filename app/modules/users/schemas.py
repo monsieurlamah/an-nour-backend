@@ -50,7 +50,10 @@ class UserUpdate(BaseModel):
 
 
 class ChangePasswordRequest(BaseModel):
-    current_password: str = Field(min_length=1)
+    # Optional: not required on the first-login flow, where the account is
+    # flagged ``must_change_password`` and the user has just authenticated with
+    # the temporary password. Required for a normal self-service change.
+    current_password: str | None = Field(default=None, min_length=1)
     new_password: str = Field(min_length=8, max_length=128)
 
     @field_validator("new_password")

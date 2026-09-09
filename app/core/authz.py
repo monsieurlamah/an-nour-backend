@@ -21,7 +21,7 @@ from sqlalchemy import select
 from app.api.deps import CurrentUser, DbSession
 from app.core.i18n import t
 from app.modules.access.services import SUPER_ADMIN_SLUG, AccessService
-from app.modules.stores.models import StoreUser
+from app.modules.stores.models import Store, StoreUser
 
 # Permissions that indicate "this user sees the whole network," not just the
 # store(s) they're explicitly assigned to. Derived from the permission a
@@ -103,7 +103,16 @@ async def get_user_store_scope(
             StoreUser.deleted_at.is_(None),
         )
     )
-    return frozenset(rows.scalars().all())
+    store_ids = set(rows.scalars().all())
+    # Belt-and-braces: a user set as a store's gérant (``stores.gerant_id``)
+    # is in scope for that store even if the ``StoreUser`` link row is missing
+    # (older data, or a direct DB assignment). New assignments keep the link
+    # in sync — see ``StoreService.sync_gerant_link``.
+    gerant_rows = await db.execute(
+        select(Store.id).where(Store.gerant_id == user.id, Store.deleted_at.is_(None))
+    )
+    store_ids.update(gerant_rows.scalars().all())
+    return frozenset(store_ids)
 
 
 UserStoreScope = Annotated[StoreScope, Depends(get_user_store_scope)]

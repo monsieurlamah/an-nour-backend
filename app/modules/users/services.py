@@ -140,12 +140,19 @@ class UserService:
         return user
 
     async def change_own_password(self, user: User, payload: ChangePasswordRequest) -> None:
-        if not verify_password(payload.current_password, user.password):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=t("incorrect_current_password"),
-            )
+        # First login: the account is flagged ``must_change_password`` and the
+        # user just authenticated with the temporary password — no need to ask
+        # for it again. Any other time, the current password must be verified.
+        if not user.must_change_password:
+            if not payload.current_password or not verify_password(
+                payload.current_password, user.password
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=t("incorrect_current_password"),
+                )
         user.password = hash_password(payload.new_password)
+        user.must_change_password = False
         self.db.add(user)
         await self.db.flush()
 

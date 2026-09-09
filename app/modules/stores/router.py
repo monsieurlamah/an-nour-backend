@@ -47,6 +47,11 @@ async def create_store(
     data["created_by"] = user.id
     store = await service.create(data)
 
+    # A gérant set on the form must also get the StoreUser link the RBAC
+    # scope system reads from — otherwise they're assigned but scope-less.
+    if store.gerant_id is not None:
+        await service.sync_gerant_link(store.id, store.gerant_id)
+
     # Auto-create the STORE stock location linked to this store
     await StockLocationService(db).create({
         "name": store.name,
@@ -86,7 +91,12 @@ async def update_store(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Store not found")
 
     updates = payload.model_dump(exclude_unset=True)
+    previous_gerant_id = store.gerant_id
     store = await service.update(store, updates)
+
+    # Keep the gérant's StoreUser link in sync when the assignment changes.
+    if "gerant_id" in updates and updates["gerant_id"] != previous_gerant_id:
+        await service.sync_gerant_link(store.id, store.gerant_id, previous_gerant_id)
 
     # If store name changed, sync the stock_location name
     if "name" in updates:

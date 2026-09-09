@@ -30,8 +30,8 @@ def upgrade() -> None:
     for slug, module, name in PERMISSIONS:
         conn.execute(
             sa.text(
-                "INSERT IGNORE INTO permissions (uuid, slug, module, name) "
-                "VALUES (:uuid, :slug, :module, :name)"
+                "INSERT IGNORE INTO permissions (uuid, slug, module, name, status) "
+                "VALUES (:uuid, :slug, :module, :name, 'active')"
             ),
             {"uuid": str(uuid.uuid4()), "slug": slug, "module": module, "name": name},
         )
