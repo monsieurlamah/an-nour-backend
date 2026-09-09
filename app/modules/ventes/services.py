@@ -6,6 +6,7 @@ creation and cash-register movements — all within the one DB transaction
 already managed by ``app.database.session.get_db`` (commit on success,
 rollback on any exception, no partial writes possible).
 """
+from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import date, timedelta
