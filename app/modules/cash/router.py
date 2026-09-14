@@ -8,6 +8,7 @@ from app.api.deps import CurrentUser, DbSession
 from app.core.authz import UserStoreScope, require_permission
 from app.database.enums import CashSessionStatus
 from app.modules.cash.schemas import (
+    CashMovementCancel,
     CashMovementCreate,
     CashMovementRead,
     CashSessionClose,
@@ -118,3 +119,25 @@ async def create_cash_movement(
         if session is None or not in_scope(session.store_id, scope):  # type: ignore[attr-defined]
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Cash session not found")
     return await CashMovementService(db).create(payload, user)  # type: ignore[return-value]
+
+
+@router.post("/movements/{movement_id}/cancel", response_model=CashMovementRead)
+async def cancel_cash_movement(
+    movement_id: int,
+    payload: CashMovementCancel,
+    db: DbSession,
+    user: CurrentUser,
+    _perm: Annotated[None, Depends(require_permission("cash.annuler"))],
+    scope: UserStoreScope,
+) -> CashMovementRead:
+    """Cahier des charges §10 — annulation/correction d'un encaissement,
+    avec motif et validation (la permission cash.annuler est elle-même la
+    validation : un simple caissier/vendeur ne l'a pas, un gérant si)."""
+    service = CashMovementService(db)
+    movement = await service.get(movement_id)
+    if movement is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Cash movement not found")
+    cash_session = await CashSessionService(db).get(movement.cash_session_id)
+    if cash_session is None or not in_scope(cash_session.store_id, scope):  # type: ignore[attr-defined]
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Cash movement not found")
+    return await service.cancel(movement, payload, user)  # type: ignore[return-value]

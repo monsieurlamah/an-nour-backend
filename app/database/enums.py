@@ -85,6 +85,12 @@ class VenteType(str, enum.Enum):
 
 
 class VenteStatut(str, enum.Enum):
+    # Devis (cahier des charges §9.1) — no stock impact, no payment, no
+    # créance yet. Only a proforma can ever be in this state or the next;
+    # every other status below implies a real facture définitive exists.
+    proforma = "proforma"
+    proforma_expiree = "proforma_expiree"
+    proforma_rejetee = "proforma_rejetee"
     en_cours = "en_cours"
     completee = "completee"
     partiellement_payee = "partiellement_payee"
@@ -126,15 +132,6 @@ class PaiementMode(str, enum.Enum):
     cheque = "cheque"
 
 
-# --- Achats fournisseurs ---
-class PurchaseStatut(str, enum.Enum):
-    brouillon = "brouillon"
-    commandee = "commandee"
-    partiellement_recue = "partiellement_recue"
-    recue = "recue"
-    annulee = "annulee"
-
-
 # --- Alertes de stock ---
 class StockAlertType(str, enum.Enum):
     LOW_STOCK = "LOW_STOCK"
@@ -165,7 +162,26 @@ class MovementReason(str, enum.Enum):
     THEFT = "THEFT"
     INVENTORY = "INVENTORY"
     REAPPRO = "REAPPRO"
+    # Cahier des charges §7.4/§12 — inter-boutique rebalancing, distinct from
+    # REAPPRO (central -> store réapprovisionnement, via the commandes
+    # module): TRANSFERT covers any boutique <-> boutique move, including
+    # principale <-> délocalisée and délocalisée <-> délocalisée.
+    TRANSFERT = "TRANSFERT"
     OTHER = "OTHER"
+
+
+# --- Transferts inter-boutiques (§7.4/§12) ---
+class TransfertStatut(str, enum.Enum):
+    """No "brouillon" state: §7.4 step 2 says the source boutique's stock is
+    decremented "immédiatement" when the bon de transfert is created — so
+    creating IS shipping in this implementation (the cahier's own stated
+    default; the alternative "ou au moment de l'expédition" is the same
+    action just named differently, not a separate approval gate)."""
+
+    en_transit = "en_transit"
+    receptionne = "receptionne"
+    receptionne_avec_ecart = "receptionne_avec_ecart"
+    annule = "annule"
 
 
 class ReferenceType(str, enum.Enum):
@@ -173,7 +189,6 @@ class ReferenceType(str, enum.Enum):
 
     COMMANDE = "COMMANDE"
     VENTE = "VENTE"
-    PURCHASE = "PURCHASE"
     PAIEMENT = "PAIEMENT"
     CREANCE = "CREANCE"
     EXPENSE = "EXPENSE"
@@ -181,6 +196,7 @@ class ReferenceType(str, enum.Enum):
     PRODUCT = "PRODUCT"
     STORE = "STORE"
     USER = "USER"
+    TRANSFERT = "TRANSFERT"
 
 
 # --- Trésorerie / caisse ---

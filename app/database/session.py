@@ -51,7 +51,6 @@ def init_models() -> None:
     modules that define tables.
     """
     from app.modules.access import models as _access  # noqa: F401
-    from app.modules.achat import models as _achat  # noqa: F401
     from app.modules.auth import models as _auth  # noqa: F401
     from app.modules.cash import models as _cash  # noqa: F401
     from app.modules.catalog import models as _catalog  # noqa: F401
@@ -63,6 +62,7 @@ def init_models() -> None:
     from app.modules.stock import models as _stock  # noqa: F401
     from app.modules.stores import models as _stores  # noqa: F401
     from app.modules.system import models as _system  # noqa: F401
+    from app.modules.transferts import models as _transferts  # noqa: F401
     from app.modules.users import models as _users  # noqa: F401
     from app.modules.ventes import models as _ventes  # noqa: F401
 

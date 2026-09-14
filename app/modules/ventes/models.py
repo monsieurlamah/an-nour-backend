@@ -40,6 +40,26 @@ class Vente(Entity):
         index=True,
     )
 
+    # Devis (cahier des charges §9.1-§9.3) — additive on top of the existing
+    # direct/one-shot sale: a Vente either starts life already as a facture
+    # (today's flow, statut resolved immediately by VenteService.create —
+    # numero_facture assigned there too, for a proper reference on every
+    # sale) or starts as `proforma` (VenteService.create_proforma) and later
+    # moves to a facture via VenteService.transform_to_facture — the one and
+    # only place stock/paiements/créance are ever touched for that path.
+    numero_proforma: Mapped[str | None] = mapped_column(String(30), unique=True, nullable=True)
+    numero_facture: Mapped[str | None] = mapped_column(String(30), unique=True, nullable=True)
+    proforma_valide_jusquau: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    proforma_refus_motif: Mapped[str | None] = mapped_column(Text, nullable=True)
+    proforma_refused_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    proforma_refused_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    facture_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    facture_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
     # Delivery — independent from payment status (see VenteLivraisonStatut).
     livraison_statut: Mapped[VenteLivraisonStatut] = mapped_column(
         Enum(VenteLivraisonStatut, native_enum=False, length=20, create_constraint=False),

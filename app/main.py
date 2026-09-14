@@ -23,7 +23,6 @@ OPENAPI_TAGS = [
     {"name": "clients", "description": "Clients des boutiques."},
     {"name": "stock", "description": "Stock central, stock boutique et mouvements de stock."},
     {"name": "commandes", "description": "Commandes de réapprovisionnement boutique → central."},
-    {"name": "achats", "description": "Fournisseurs et bons d'achat."},
     {"name": "ventes", "description": "Ventes en boutique et lignes de vente."},
     {"name": "creances", "description": "Créances clients et paiements."},
     {"name": "expenses", "description": "Catégories de dépenses et dépenses."},

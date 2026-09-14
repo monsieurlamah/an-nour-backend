@@ -3,8 +3,10 @@
 Same in-memory SQLite fixtures as test_ventes_engine.py.
 """
 
+from datetime import datetime, timedelta
 from decimal import Decimal
 
+from app.modules.commandes.models import Commande
 from app.modules.creances.models import Creance
 from app.modules.reports.services import ReportsService
 from app.modules.ventes.schemas import VenteCreate, VenteLigneCreate, VentePaiementCreate
@@ -117,3 +119,77 @@ async def test_stock_by_category_aggregates_central_and_boutique(
     assert len(data.stock_by_category) == 1
     assert data.stock_by_category[0].category == "Alimentaire"
     assert data.stock_by_category[0].valeur == Decimal("1050000")
+
+
+async def test_aged_balance_bucketed_by_days_since_echeance(db, store, client_):
+    now = datetime.now()
+    db.add(Creance(
+        client_id=client_.id, boutique_id=store.id,
+        montant_initial=Decimal("50000"), montant_restant=Decimal("50000"),
+        statut="active", date_echeance=now - timedelta(days=10),
+    ))
+    db.add(Creance(
+        client_id=client_.id, boutique_id=store.id,
+        montant_initial=Decimal("30000"), montant_restant=Decimal("30000"),
+        statut="en_retard", date_echeance=now - timedelta(days=95),
+    ))
+    await db.commit()
+
+    data = await ReportsService(db).get_data(store.id)
+    by_tranche = {b.tranche: b.montant for b in data.aged_balance}
+
+    assert by_tranche["0-30"] == Decimal("50000")
+    assert by_tranche["90+"] == Decimal("30000")
+    assert by_tranche["31-60"] == Decimal("0")
+
+
+async def test_supply_stats_shape_is_zeroed_with_no_commandes(db, store):
+    data = await ReportsService(db).get_data(store.id)
+
+    assert data.supply_stats.nb_commandes == 0
+    assert data.supply_stats.delai_moyen_validation_jours is None
+    assert data.supply_stats.delai_moyen_livraison_jours is None
+    assert data.supply_stats.taux_rejet_pct == Decimal("0")
+    assert data.supply_stats.taux_ecart_pct == Decimal("0")
+
+
+async def test_supply_stats_computes_delays_rejection_and_ecart_rates(db, store):
+    now = datetime.now()
+
+    # Validée le lendemain de la création.
+    db.add(Commande(
+        boutique_id=store.id, numero="DEM-2026-000001", statut="validee",
+        created_at=now, validated_at=now + timedelta(days=1),
+    ))
+    # Rejetée — compte dans le taux de rejet, pas dans les délais de livraison.
+    db.add(Commande(
+        boutique_id=store.id, numero="DEM-2026-000002", statut="rejetee",
+        created_at=now,
+    ))
+    # Reçue sans écart, livrée 3 jours après la création.
+    db.add(Commande(
+        boutique_id=store.id, numero="DEM-2026-000003", statut="reception_confirmee",
+        created_at=now, delivered_at=now + timedelta(days=3),
+    ))
+    # Reçue avec écart, livrée 5 jours après la création.
+    db.add(Commande(
+        boutique_id=store.id, numero="DEM-2026-000004", statut="partiellement_recu",
+        created_at=now, delivered_at=now + timedelta(days=5),
+    ))
+    await db.commit()
+
+    stats = (await ReportsService(db).get_data(store.id)).supply_stats
+
+    assert stats.nb_commandes == 4
+    assert stats.delai_moyen_validation_jours == Decimal("1.0")
+    assert stats.delai_moyen_livraison_jours == Decimal("4.0")  # (3+5)/2
+    assert stats.taux_rejet_pct == Decimal("25.0")  # 1/4
+    assert stats.taux_ecart_pct == Decimal("50.0")  # 1 écart / 2 arrivées à terme
+
+
+async def test_supply_stats_excludes_never_submitted_drafts(db, store):
+    db.add(Commande(boutique_id=store.id, numero=None, statut="brouillon"))
+    await db.commit()
+
+    stats = (await ReportsService(db).get_data(store.id)).supply_stats
+    assert stats.nb_commandes == 0

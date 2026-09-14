@@ -60,3 +60,21 @@ class CashMovement(LogEntity):
     created_by: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+    # Cahier des charges §10 — "Gestion des annulations/corrections
+    # d'encaissement avec motif et validation". CashMovement is append-only
+    # (LogEntity) by design — the financial fact (type/amount) of a row is
+    # NEVER edited or deleted. A cancellation instead (1) annotates the
+    # original row with who/when/why, purely for audit display, and (2)
+    # inserts a real compensating movement in the opposite direction so the
+    # cash session's running total stays correct — see
+    # CashMovementService.cancel.
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    cancelled_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    cancel_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Set ONLY on the compensating entry itself, pointing back at the
+    # original movement it reverses.
+    reverses_movement_id: Mapped[int | None] = mapped_column(
+        ForeignKey("cash_movements.id", ondelete="SET NULL"), nullable=True
+    )

@@ -20,7 +20,9 @@ from decimal import Decimal
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.creances.services import CreanceService
 from app.modules.reports.schemas import (
+    AgedBalanceBucket,
     CollectionWeekPoint,
     ReportsData,
     ReportsKpi,
@@ -28,6 +30,7 @@ from app.modules.reports.schemas import (
     SellerRevenue,
     StockCategoryValue,
     StoreRevenue,
+    SupplyStats,
 )
 
 ZERO = Decimal("0")
@@ -55,6 +58,15 @@ def _month_bounds(offset: int = 0) -> tuple[datetime, datetime]:
 def _year_bounds() -> tuple[datetime, datetime]:
     year = date.today().year
     return datetime(year, 1, 1), datetime(year + 1, 1, 1)
+
+
+def _as_datetime(value: object) -> datetime:
+    """Same idea as ``_as_date`` but keeping the time-of-day — needed to
+    compute sub-day-precision delays (validation/livraison) rather than
+    coarse whole-day buckets."""
+    if isinstance(value, datetime):
+        return value
+    return datetime.fromisoformat(str(value))
 
 
 def _as_date(value: object) -> date:
@@ -289,6 +301,63 @@ class ReportsService:
             for r in rows
         ]
 
+    # ── §16 Suivi de l'approvisionnement : délais, rejets, écarts ───────────
+    #
+    # Calculé sur l'historique complet des demandes réellement soumises
+    # (numero IS NOT NULL exclut les brouillons jamais envoyés) — pas de
+    # fenêtre temporelle, même logique que le recouvrement des créances dans
+    # _kpi ci-dessus : un échantillon plus large donne une moyenne plus
+    # significative sur un réseau qui ne génère encore que quelques
+    # commandes par mois.
+
+    _REJECTED_STATUTS = ("rejetee", "proforma_rejetee")
+    _TERMINAL_RECEPTION_STATUTS = ("livree", "reception_confirmee", "partiellement_recu")
+
+    async def _supply_stats(self, boutique_filter_nv: str, params: dict) -> SupplyStats:
+        rows = (await self._q(
+            f"SELECT statut, created_at, validated_at, delivered_at FROM commandes "
+            f"WHERE deleted_at IS NULL AND numero IS NOT NULL {boutique_filter_nv}",
+            params,
+        )).fetchall()
+
+        total = len(rows)
+        rejetees = 0
+        ecarts = 0
+        cycle_termine = 0
+        delais_validation: list[float] = []
+        delais_livraison: list[float] = []
+
+        for statut, created_at, validated_at, delivered_at in rows:
+            statut = str(statut)
+            created = _as_datetime(created_at)
+            if statut in self._REJECTED_STATUTS:
+                rejetees += 1
+            if statut in self._TERMINAL_RECEPTION_STATUTS:
+                cycle_termine += 1
+                if statut == "partiellement_recu":
+                    ecarts += 1
+            if validated_at is not None:
+                delais_validation.append(
+                    (_as_datetime(validated_at) - created).total_seconds() / 86_400
+                )
+            if delivered_at is not None:
+                delais_livraison.append(
+                    (_as_datetime(delivered_at) - created).total_seconds() / 86_400
+                )
+
+        def avg_days(values: list[float]) -> Decimal | None:
+            if not values:
+                return None
+            return Decimal(str(sum(values) / len(values))).quantize(Decimal("0.1"))
+
+        return SupplyStats(
+            nb_commandes=total,
+            delai_moyen_validation_jours=avg_days(delais_validation),
+            delai_moyen_livraison_jours=avg_days(delais_livraison),
+            taux_rejet_pct=self._pct(Decimal(rejetees), Decimal(total)),
+            taux_ecart_pct=self._pct(Decimal(ecarts), Decimal(cycle_termine)),
+        )
+
     # ── Public method ─────────────────────────────────────────────────────────
 
     async def get_data(self, boutique_id: int | None) -> ReportsData:
@@ -312,6 +381,11 @@ class ReportsService:
         )
         store_revenue = await self._store_revenue(boutique_filter_v, params)
         seller_revenue = await self._seller_revenue(boutique_filter_v, params)
+        aged_balance = [
+            AgedBalanceBucket(**bucket)
+            for bucket in await CreanceService(self.db).aged_balance(boutique_id)
+        ]
+        supply_stats = await self._supply_stats(boutique_filter_nv, params)
 
         return ReportsData(
             kpi=kpi,
@@ -320,4 +394,6 @@ class ReportsService:
             collection_trend=collection_trend,
             store_revenue=store_revenue,
             seller_revenue=seller_revenue,
+            aged_balance=aged_balance,
+            supply_stats=supply_stats,
         )

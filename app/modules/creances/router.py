@@ -14,6 +14,7 @@ from app.modules.creances.schemas import (
     CreanceUpdate,
     PaiementCreate,
     PaiementRead,
+    RelanceCreate,
 )
 from app.modules.creances.services import CreanceService, PaiementService
 from app.modules.ventes.models import Vente
@@ -87,6 +88,37 @@ async def update_creance(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Creance not found")
     updated = await service.update(creance, payload.model_dump(exclude_unset=True))
     return await service.enrich(updated)  # type: ignore[return-value]
+
+
+@router.post("/{creance_id}/relance", response_model=CreanceRead)
+async def send_relance(
+    creance_id: int,
+    payload: RelanceCreate,
+    db: DbSession,
+    user: CurrentUser,
+    _perm: Annotated[None, Depends(require_permission("creances.manage"))],
+    scope: UserStoreScope,
+) -> CreanceRead:
+    """Cahier des charges §8.2 — manual relance."""
+    service = CreanceService(db)
+    creance = await service.get(creance_id)
+    if creance is None or not in_scope(creance.boutique_id, scope):  # type: ignore[attr-defined]
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Creance not found")
+    updated = await service.record_relance(creance, payload, user)
+    return await service.enrich(updated)  # type: ignore[return-value]
+
+
+@router.get("/reports/aged-balance")
+async def aged_balance_report(
+    db: DbSession,
+    _: CurrentUser,
+    _perm: Annotated[None, Depends(require_permission("creances.view"))],
+    scope: UserStoreScope,
+    boutique_id: int | None = Query(default=None),
+) -> list[dict]:
+    """Cahier des charges §18 — "Balance âgée des créances clients (par
+    tranche d'ancienneté)"."""
+    return await CreanceService(db).aged_balance(resolve_list_scope(boutique_id, scope))
 
 
 # --- Payments ------------------------------------------------------------------

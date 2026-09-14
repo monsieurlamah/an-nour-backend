@@ -21,6 +21,13 @@ class ActivityLog(LogEntity):
         nullable=True,
     )
     reference_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Cahier des charges §14 — the journal must be filterable "par boutique"
+    # by the propriétaire, and a gérant may only ever see their own
+    # boutique's entries. Denormalized at write time (log_activity) from
+    # whatever entity the action concerns — a plain FK-less int rather than
+    # a real FK since a HQ-wide/system action (e.g. a new boutique being
+    # created) legitimately has no boutique of its own.
+    boutique_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
 

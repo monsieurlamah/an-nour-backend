@@ -10,11 +10,13 @@ from app.api.deps import CurrentUser, DbSession
 from app.core.authz import UserStoreScope, require_permission
 from app.core.i18n import t
 from app.core.logging import get_logger
+from app.database.enums import ReferenceType
 from app.modules.access.schemas import UserGroupRead
 from app.modules.access.services import UserGroupService
 from app.modules.common.store_scope import resolve_list_scope
 from app.modules.stores.schemas import StoreUserRead
 from app.modules.stores.services import StoreUserService
+from app.modules.system.services import log_activity
 from app.modules.users.schemas import ChangePasswordRequest, UserCreate, UserRead, UserUpdate
 from app.modules.users.services import UserService
 from app.security.password import hash_password
@@ -69,7 +71,7 @@ async def create_user(
     payload: UserCreate,
     background_tasks: BackgroundTasks,
     db: DbSession,
-    _: CurrentUser,
+    actor: CurrentUser,
     _perm: Annotated[None, Depends(require_permission("users.manage"))],
 ) -> UserRead:
     plain_pw = payload.password  # capture before the service hashes it
@@ -82,6 +84,20 @@ async def create_user(
     db.add(user)
     await db.flush()
     await db.refresh(user)
+    # Commit explicitly BEFORE queuing the background task. FastAPI runs
+    # BackgroundTasks as part of sending the response, and the `db`
+    # dependency's own post-yield commit only happens once that finishes —
+    # so without this, the new row stays uncommitted (invisible to any other
+    # connection, including a login attempt) for as long as the background
+    # email send takes. Verified live: a login right after account creation
+    # failed with "mot de passe incorrect" for ~1.7s until the queued email
+    # finished sending, even with the correct password.
+    await db.commit()
+
+    await log_activity(
+        db, actor, f"Utilisateur créé — {user.full_name} ({user.email})", "users",
+        reference_type=ReferenceType.USER, reference_id=user.id,
+    )
 
     if payload.send_credentials:
         # Fire-and-forget: email is sent after the response is returned so the
@@ -117,21 +133,27 @@ async def update_user(
     user_id: int,
     payload: UserUpdate,
     db: DbSession,
-    _: CurrentUser,
+    actor: CurrentUser,
     _perm: Annotated[None, Depends(require_permission("users.manage"))],
 ) -> UserRead:
     service = UserService(db)
     user = await service.get(user_id)
     if user is None or user.deleted_at is not None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=t("user_not_found"))
-    return await service.update(user, payload)  # type: ignore[return-value]
+    fields = payload.model_dump(exclude_unset=True)
+    updated = await service.update(user, payload)
+    await log_activity(
+        db, actor, f"Utilisateur modifié — {updated.full_name} ({', '.join(fields.keys())})",
+        "users", reference_type=ReferenceType.USER, reference_id=user.id,
+    )
+    return updated  # type: ignore[return-value]
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: int,
     db: DbSession,
-    _: CurrentUser,
+    actor: CurrentUser,
     _perm: Annotated[None, Depends(require_permission("users.manage"))],
 ) -> None:
     service = UserService(db)
@@ -139,6 +161,10 @@ async def delete_user(
     if user is None or user.deleted_at is not None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=t("user_not_found"))
     await service.soft_delete(user)
+    await log_activity(
+        db, actor, f"Utilisateur suspendu — {user.full_name} ({user.email})", "users",
+        reference_type=ReferenceType.USER, reference_id=user.id,
+    )
 
 
 # --- User ↔ Group (shorthand on /users path) ---------------------------------
@@ -214,6 +240,10 @@ async def send_user_credentials(
     user.must_change_password = True
     db.add(user)
     await db.flush()
+    # Same fix as create_user — commit before queuing the background task so
+    # the new password is durably visible (login-able) before the email send
+    # even starts, instead of only after it finishes.
+    await db.commit()
 
     logger.info("Queuing resend-credentials email to %s", user.email)
     background_tasks.add_task(

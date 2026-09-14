@@ -115,10 +115,14 @@ class StockSaleService:
         quantity: int,
         reference: str | None,
         created_by: int | None,
+        reason: MovementReason = MovementReason.SALE,
     ) -> StockMovement:
-        """Decrement stock and log a SALE/OUT movement. Caller must have already
-        validated sufficient availability via ``check_available`` (re-checked
-        here defensively against the same in-transaction row)."""
+        """Decrement stock and log an OUT movement (SALE by default — pass
+        ``reason=MovementReason.TRANSFERT`` for a transfert d'expédition so
+        the movement history correctly distinguishes the two). Caller must
+        have already validated sufficient availability via
+        ``check_available`` (re-checked here defensively against the same
+        in-transaction row)."""
         stock = await self.check_available(product_id, location_id, quantity)
         qty_before = stock.quantity
         qty_after = qty_before - quantity
@@ -135,7 +139,7 @@ class StockSaleService:
             "product_id": product_id,
             "from_location_id": location_id,
             "movement_type": MovementType.OUT,
-            "reason": MovementReason.SALE,
+            "reason": reason,
             "quantity": quantity,
             "quantity_before": qty_before,
             "quantity_after": qty_after,
@@ -155,9 +159,12 @@ class StockSaleService:
         quantity: int,
         reference: str | None,
         created_by: int | None,
+        reason: MovementReason = MovementReason.RETURN,
     ) -> StockMovement:
-        """Re-integrate returned goods: increment stock and log an IN/RETURN
-        movement. Mirrors ``consume`` exactly in reverse direction."""
+        """Re-integrate goods: increment stock and log an IN movement
+        (RETURN by default — a returned sale; pass
+        ``reason=MovementReason.TRANSFERT`` for a cancelled/reversed
+        transfert). Mirrors ``consume`` exactly in reverse direction."""
         existing = await self.stocks.list(product_id=product_id, location_id=location_id, limit=1)
         if existing:
             stock = existing[0]
@@ -179,13 +186,17 @@ class StockSaleService:
             "product_id": product_id,
             "to_location_id": location_id,
             "movement_type": MovementType.IN,
-            "reason": MovementReason.RETURN,
+            "reason": reason,
             "quantity": quantity,
             "quantity_before": qty_before,
             "quantity_after": qty_after,
             "reference": reference,
             "created_by": created_by,
         })
+        # Best-effort, mirrors consume() — a transfert réception crediting a
+        # boutique below its own alert threshold is just as worth flagging
+        # as a sale depleting one.
+        await self.alerts.check_and_notify(stock)
         return movement
 
     async def receive_transfer(

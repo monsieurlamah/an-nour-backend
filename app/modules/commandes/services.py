@@ -17,7 +17,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import get_logger
-from app.database.enums import CommandeEvenementType, CommandeStatut, NotificationType
+from app.database.enums import (
+    CommandeEvenementType,
+    CommandeStatut,
+    NotificationType,
+    ReferenceType,
+)
 from app.modules.commandes.models import (
     Commande,
     CommandeAnomalie,
@@ -40,6 +45,7 @@ from app.modules.notifications.schemas import NotificationCreate
 from app.modules.notifications.services import NotificationService
 from app.modules.stock.services import StockSaleService
 from app.modules.stores.models import Store
+from app.modules.system.services import log_activity
 from app.modules.users.models import User
 from app.utils.email import send_proforma_rejected_email
 from app.utils.helpers import utcnow
@@ -174,6 +180,18 @@ class CommandeService:
         )
         self.db.add(event)
         await self.db.flush()
+        # Cahier des charges §14 — every commande transition already lands
+        # here, so this single call site feeds the CENTRAL cross-module
+        # journal (filterable by the propriétaire across every boutique)
+        # exactly the same events CommandeEvenement already gives this one
+        # dossier's own timeline.
+        ref = commande.numero or f"COMMANDE-{commande.id}"
+        suffix = f" ({commentaire})" if commentaire else ""
+        await log_activity(
+            self.db, acteur_id, f"{type_evenement.value} — {ref}{suffix}",
+            "commandes", reference_type=ReferenceType.COMMANDE, reference_id=commande.id,
+            boutique_id=commande.boutique_id, ip_address=ip_address,
+        )
         return event
 
     async def _persist(self, commande: Commande) -> Commande:

@@ -12,11 +12,15 @@ from app.modules.common.store_scope import assert_creatable, in_scope, resolve_l
 from app.modules.ventes.models import Vente
 from app.modules.ventes.schemas import (
     VenteCreate,
+    VenteProformaCreate,
+    VenteProformaReject,
+    VenteProformaUpdate,
     VenteRead,
     VenteRemboursementCreate,
     VenteRemboursementRead,
     VenteRetourCreate,
     VenteRetourRead,
+    VenteTransformRequest,
 )
 from app.modules.ventes.services import VenteRemboursementService, VenteRetourService, VenteService
 
@@ -97,6 +101,65 @@ async def create_vente(
 ) -> VenteRead:
     assert_creatable(payload.boutique_id, scope)
     return await VenteService(db).create(payload, user)  # type: ignore[return-value]
+
+
+# ── Proforma (devis) — cahier des charges §9.1-§9.3 ───────────────────────────
+# Declared before "/{vente_id}" so the literal "/proforma" path is never
+# swallowed by the int path-param route.
+
+
+@router.post("/proforma", response_model=VenteRead, status_code=status.HTTP_201_CREATED)
+async def create_proforma(
+    payload: VenteProformaCreate,
+    db: DbSession,
+    user: CurrentUser,
+    _perm: Annotated[None, Depends(require_permission("ventes.create"))],
+    scope: UserStoreScope,
+) -> VenteRead:
+    assert_creatable(payload.boutique_id, scope)
+    return await VenteService(db).create_proforma(payload, user)  # type: ignore[return-value]
+
+
+@router.patch("/{vente_id}/proforma", response_model=VenteRead)
+async def update_proforma(
+    vente_id: int,
+    payload: VenteProformaUpdate,
+    db: DbSession,
+    user: CurrentUser,
+    _perm: Annotated[None, Depends(require_permission("ventes.create"))],
+    scope: UserStoreScope,
+) -> VenteRead:
+    service = VenteService(db)
+    vente = await _get_scoped_vente(vente_id, service, scope)
+    return await service.update_proforma(vente, payload, user)  # type: ignore[return-value]
+
+
+@router.post("/{vente_id}/proforma/reject", response_model=VenteRead)
+async def reject_proforma(
+    vente_id: int,
+    payload: VenteProformaReject,
+    db: DbSession,
+    user: CurrentUser,
+    _perm: Annotated[None, Depends(require_permission("ventes.create"))],
+    scope: UserStoreScope,
+) -> VenteRead:
+    service = VenteService(db)
+    vente = await _get_scoped_vente(vente_id, service, scope)
+    return await service.reject_proforma(vente, payload, user)  # type: ignore[return-value]
+
+
+@router.post("/{vente_id}/transform", response_model=VenteRead)
+async def transform_to_facture(
+    vente_id: int,
+    payload: VenteTransformRequest,
+    db: DbSession,
+    user: CurrentUser,
+    _perm: Annotated[None, Depends(require_permission("ventes.create"))],
+    scope: UserStoreScope,
+) -> VenteRead:
+    service = VenteService(db)
+    vente = await _get_scoped_vente(vente_id, service, scope)
+    return await service.transform_to_facture(vente, payload, user)  # type: ignore[return-value]
 
 
 @router.get("/{vente_id}", response_model=VenteRead)

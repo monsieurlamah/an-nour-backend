@@ -3,7 +3,6 @@
 from fastapi import APIRouter
 
 from app.modules.access.router import router as access_router
-from app.modules.achat.router import router as achat_router
 from app.modules.auth.router import router as auth_router
 from app.modules.cash.router import router as cash_router
 from app.modules.catalog.router import router as catalog_router
@@ -17,6 +16,7 @@ from app.modules.reports.router import router as reports_router
 from app.modules.stock.router import router as stock_router
 from app.modules.stores.router import router as stores_router
 from app.modules.system.router import router as system_router
+from app.modules.transferts.router import router as transferts_router
 from app.modules.upload.router import router as upload_router
 from app.modules.users.router import router as users_router
 from app.modules.ventes.router import router as ventes_router
@@ -36,7 +36,7 @@ api_router.include_router(clients_router)
 # Inventory & supply
 api_router.include_router(stock_router)
 api_router.include_router(commandes_router)
-api_router.include_router(achat_router)
+api_router.include_router(transferts_router)
 
 # Sales & finance
 api_router.include_router(ventes_router)

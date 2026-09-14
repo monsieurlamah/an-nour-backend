@@ -23,6 +23,18 @@ class CreanceUpdate(BaseModel):
     statut: CreanceStatut | None = None
 
 
+class RelanceCreate(BaseModel):
+    """A manual relance (§8.2) — staff recording that they reminded the
+    client (phone call, in person, printed relevé handed over…). `moyen`
+    is a free label ("Téléphone", "En personne", "Relevé imprimé"…) kept
+    for the activity log; there is no outbound SMS/email-to-client channel
+    in this system, so this is a record of the reminder, not the delivery
+    of one."""
+
+    moyen: str | None = Field(default=None, max_length=100)
+    notes: str | None = Field(default=None, max_length=500)
+
+
 class CreanceRead(EntityRead):
     vente_id: int | None
     client_id: int
@@ -31,6 +43,8 @@ class CreanceRead(EntityRead):
     montant_restant: Decimal
     date_echeance: datetime | None
     statut: CreanceStatut
+    derniere_relance_at: datetime | None = None
+    nombre_relances: int = 0
     # Denormalized at read time (see CreanceService.list_enriched) — a
     # créance must still show who owes what even if the client record was
     # since soft-deleted; the frontend has no scoped way to look that up

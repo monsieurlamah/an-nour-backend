@@ -51,3 +51,11 @@ class CashMovementRead(LogRead):
     reference_type: ReferenceType | None
     reference_id: int | None
     created_by: int | None
+    cancelled_at: datetime | None = None
+    cancelled_by: int | None = None
+    cancel_reason: str | None = None
+    reverses_movement_id: int | None = None
+
+
+class CashMovementCancel(BaseModel):
+    motif: str = Field(min_length=1, max_length=255)

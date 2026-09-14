@@ -57,11 +57,6 @@ PERMISSIONS: list[tuple[str, str, str]] = [
     ("creances.view", "creances", "Consulter les créances"),
     ("creances.manage", "creances", "Gérer les créances"),
     ("paiements.create", "creances", "Enregistrer un paiement"),
-    # Fournisseurs & achats
-    ("suppliers.view", "suppliers", "Consulter les fournisseurs"),
-    ("suppliers.manage", "suppliers", "Gérer les fournisseurs"),
-    ("purchases.view", "achat", "Consulter les achats"),
-    ("purchases.manage", "achat", "Gérer les achats"),
     # Dépenses
     ("expenses.view", "expenses", "Consulter les dépenses"),
     ("expenses.manage", "expenses", "Gérer les dépenses"),
@@ -76,6 +71,17 @@ PERMISSIONS: list[tuple[str, str, str]] = [
     ("notifications.view", "notifications", "Consulter les notifications"),
     # Paramètres
     ("settings.manage", "settings", "Gérer les paramètres"),
+    # Journal d'activité (cahier des charges §14) — le propriétaire consulte
+    # tout le réseau, un gérant ne consulte que le journal de sa boutique.
+    ("logs.view", "system", "Consulter le journal d'activité"),
+    # Transferts inter-boutiques (§7.4/§12)
+    ("transferts.view", "transferts", "Consulter les transferts de marchandises"),
+    ("transferts.create", "transferts", "Créer un bon de transfert"),
+    ("transferts.expedier", "transferts", "Expédier un transfert"),
+    ("transferts.receive", "transferts", "Réceptionner un transfert"),
+    ("transferts.cancel", "transferts", "Annuler un transfert"),
+    # Caisse — annulation/correction d'un encaissement (§10)
+    ("cash.annuler", "cash", "Annuler ou corriger un encaissement"),
 ]
 
 # --- Groups: (slug, name, description) ---------------------------------------
@@ -112,10 +118,6 @@ GROUP_PERMISSIONS: dict[str, list[str]] = {
         "stock.central.manage",
         "commandes.view",
         "commandes.validate",
-        "suppliers.view",
-        "suppliers.manage",
-        "purchases.view",
-        "purchases.manage",
         "ventes.view",
         "clients.view",
         "creances.view",
@@ -125,6 +127,13 @@ GROUP_PERMISSIONS: dict[str, list[str]] = {
         "reports.view",
         "notifications.view",
         "settings.manage",
+        "logs.view",
+        "transferts.view",
+        "transferts.create",
+        "transferts.expedier",
+        "transferts.receive",
+        "transferts.cancel",
+        "cash.annuler",
     ],
     "gerant-boutique": [
         "dashboard.store.view",
@@ -141,6 +150,9 @@ GROUP_PERMISSIONS: dict[str, list[str]] = {
         "ventes.create",
         "ventes.manage",
         "ventes.livrer",
+        # The gérant issues factures / proformas / bons de livraison and must
+        # be able to print or download them right after the action.
+        "ventes.imprimer",
         "clients.view",
         "clients.manage",
         "creances.view",
@@ -151,8 +163,15 @@ GROUP_PERMISSIONS: dict[str, list[str]] = {
         "expenses.exporter",
         "cash.view",
         "cash.manage",
+        "cash.annuler",
         "reports.view",
         "notifications.view",
+        "logs.view",
+        "transferts.view",
+        "transferts.create",
+        "transferts.expedier",
+        "transferts.receive",
+        "transferts.cancel",
     ],
     "vendeur-boutique": [
         "dashboard.store.view",
@@ -161,6 +180,9 @@ GROUP_PERMISSIONS: dict[str, list[str]] = {
         "ventes.view",
         "ventes.create",
         "ventes.livrer",
+        # Same reason as the gérant: the vendeur prints the ticket / facture
+        # of the sale they just rang up.
+        "ventes.imprimer",
         "clients.view",
         "clients.manage",
         "creances.view",
@@ -191,8 +213,6 @@ GROUP_PERMISSIONS: dict[str, list[str]] = {
         "ventes.view",
         "clients.view",
         "creances.view",
-        # Le module Fournisseurs (achats/suppliers) est réservé au Boss —
-        # le Comptable n'y a plus accès (suppliers.view/purchases.view retirés).
         "expenses.view",
         "expenses.exporter",
         "cash.view",
@@ -213,12 +233,18 @@ GROUP_PERMISSIONS: dict[str, list[str]] = {
         "products.view",
         "stock.view",
         "notifications.view",
+        "transferts.view",
+        "transferts.create",
+        "transferts.expedier",
+        "transferts.receive",
     ],
     "livreur": [
         "commandes.view",
         "commandes.ship",
         "commandes.deliver",
         "notifications.view",
+        "transferts.view",
+        "transferts.expedier",
     ],
 }
 

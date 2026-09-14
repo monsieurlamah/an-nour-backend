@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.deps import CurrentUser, DbSession
 from app.core.authz import UserStoreScope, require_permission
+from app.database.enums import ReferenceType
 from app.modules.common.store_scope import in_scope, resolve_list_scope
 from app.modules.stock.services import StockLocationService
 from app.modules.stores.schemas import (
@@ -16,6 +17,7 @@ from app.modules.stores.schemas import (
     StoreUserRead,
 )
 from app.modules.stores.services import StoreService, StoreUserService
+from app.modules.system.services import log_activity
 
 router = APIRouter(prefix="/stores", tags=["stores"])
 
@@ -60,6 +62,10 @@ async def create_store(
         "created_by": user.id,
     })
 
+    await log_activity(
+        db, user, f"Boutique créée — {store.name}", "stores",
+        reference_type=ReferenceType.STORE, reference_id=store.id, boutique_id=store.id,
+    )
     return store  # type: ignore[return-value]
 
 
@@ -107,6 +113,10 @@ async def update_store(
                 await loc_service.update(loc, {"name": updates["name"]})
                 break
 
+    await log_activity(
+        db, user, f"Boutique modifiée — {store.name} ({', '.join(updates.keys())})", "stores",
+        reference_type=ReferenceType.STORE, reference_id=store.id, boutique_id=store.id,
+    )
     return store  # type: ignore[return-value]
 
 
@@ -114,7 +124,7 @@ async def update_store(
 async def delete_store(
     store_id: int,
     db: DbSession,
-    _: CurrentUser,
+    user: CurrentUser,
     _perm: Annotated[None, Depends(require_permission("stores.manage"))],
 ) -> None:
     service = StoreService(db)
@@ -122,6 +132,10 @@ async def delete_store(
     if store is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Store not found")
     await service.delete(store)
+    await log_activity(
+        db, user, f"Boutique désactivée — {store.name}", "stores",
+        reference_type=ReferenceType.STORE, reference_id=store.id, boutique_id=store.id,
+    )
 
 
 # --- Store ↔ User ------------------------------------------------------------

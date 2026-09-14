@@ -50,6 +50,22 @@ class SellerRevenue(BaseModel):
     ca: Decimal
 
 
+class AgedBalanceBucket(BaseModel):
+    tranche: str  # "0-30" | "31-60" | "61-90" | "90+"
+    montant: Decimal
+
+
+class SupplyStats(BaseModel):
+    """§16 — Suivi de l'approvisionnement (demandes boutique -> HQ)."""
+
+    nb_commandes: int
+    # None quand aucune commande n'a encore atteint l'étape correspondante.
+    delai_moyen_validation_jours: Decimal | None
+    delai_moyen_livraison_jours: Decimal | None
+    taux_rejet_pct: Decimal
+    taux_ecart_pct: Decimal
+
+
 class ReportsData(BaseModel):
     kpi: ReportsKpi
     revenue_trend: list[RevenueMonthPoint]
@@ -57,3 +73,5 @@ class ReportsData(BaseModel):
     collection_trend: list[CollectionWeekPoint]
     store_revenue: list[StoreRevenue]
     seller_revenue: list[SellerRevenue]
+    aged_balance: list[AgedBalanceBucket]
+    supply_stats: SupplyStats

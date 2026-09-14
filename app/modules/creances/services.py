@@ -24,12 +24,22 @@ from app.modules.cash.services import CashMovementService
 from app.modules.clients.models import Client
 from app.modules.common.crud import CRUDService
 from app.modules.creances.models import Creance, Paiement
-from app.modules.creances.schemas import CreanceCreate, PaiementCreate
+from app.modules.creances.schemas import CreanceCreate, PaiementCreate, RelanceCreate
 from app.modules.notifications.schemas import NotificationCreate
 from app.modules.notifications.services import NotificationService
 from app.modules.stores.models import Store
+from app.modules.system.services import log_activity
 from app.modules.users.models import User
 from app.modules.ventes.models import Vente
+
+# A créance still "counts" toward what a client owes as long as it isn't
+# fully settled or written off — used for both the credit-ceiling check and
+# the aged-balance report.
+_OUTSTANDING_STATUSES = (
+    CreanceStatut.active,
+    CreanceStatut.partiellement_payee,
+    CreanceStatut.en_retard,
+)
 
 logger = get_logger("creances")
 
@@ -90,6 +100,102 @@ class CreanceService(CRUDService[Creance]):
             data["montant_restant"] = payload.montant_initial
         return await self.create(data)
 
+    async def total_outstanding_for_client(
+        self, client_id: int, *, exclude_creance_id: int | None = None
+    ) -> Decimal:
+        """Sum of every not-yet-settled créance's montant_restant for one
+        client, across all boutiques — the plafond de créance (§8.1) is a
+        network-wide ceiling on the client, not a per-boutique one."""
+        stmt = select(func.coalesce(func.sum(Creance.montant_restant), 0)).where(
+            Creance.client_id == client_id,
+            Creance.deleted_at.is_(None),
+            Creance.statut.in_(_OUTSTANDING_STATUSES),
+        )
+        if exclude_creance_id is not None:
+            stmt = stmt.where(Creance.id != exclude_creance_id)
+        return Decimal((await self.db.execute(stmt)).scalar_one())
+
+    async def check_credit_ceiling(self, client: Client, additional_amount: Decimal) -> None:
+        """Cahier des charges §8.1 — "Plafond de créance autorisé par client
+        (paramétrable), avec blocage ou alerte au-delà du plafond." A
+        plafond of 0 means "no ceiling configured" (the schema/model default
+        for every client created before this existed), never a hard block on
+        any credit at all — an explicit, deliberately-set positive value is
+        required to actually restrict anything."""
+        if client.plafond_credit <= 0:
+            return
+        current = await self.total_outstanding_for_client(client.id)
+        projected = current + additional_amount
+        if projected > client.plafond_credit:
+            client_name = f"{client.name} {client.prenom or ''}".strip()
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                f"Plafond de crédit dépassé pour {client_name} : encours actuel "
+                f"{current:,.0f} GNF + {additional_amount:,.0f} GNF dépasserait le "
+                f"plafond autorisé de {client.plafond_credit:,.0f} GNF.".replace(",", " "),
+            )
+
+    async def record_relance(
+        self, creance: Creance, payload: RelanceCreate, user: User
+    ) -> Creance:
+        """Manual relance (§8.2) — a staff member recording that they
+        reminded the client about this créance. See RelanceCreate's
+        docstring for why this only ever records the reminder rather than
+        sending one itself."""
+        creance.derniere_relance_at = datetime.now(UTC).replace(tzinfo=None)
+        creance.nombre_relances += 1
+        self.db.add(creance)
+        await self.db.flush()
+        await self.db.refresh(creance)
+
+        detail = f"moyen={payload.moyen or 'non précisé'}"
+        await log_activity(
+            self.db, user, f"Relance créance ({detail})", "creances",
+            reference_type=ReferenceType.CREANCE, reference_id=creance.id,
+            boutique_id=creance.boutique_id,
+        )
+        logger.info(
+            "creance.relance creance_id=%s user_id=%s moyen=%s nombre_relances=%s",
+            creance.id, user.id, payload.moyen, creance.nombre_relances,
+        )
+        return creance
+
+    async def aged_balance(
+        self, boutique_id: int | None = None
+    ) -> list[dict]:
+        """§18 — "Balance âgée des créances clients (par tranche
+        d'ancienneté)". Buckets every outstanding créance by days since its
+        échéance (or its creation date when no échéance was set) into the
+        four tranches a French-language aged-debt report conventionally
+        uses: 0-30 / 31-60 / 61-90 / 90+ jours."""
+        stmt = select(Creance).where(
+            Creance.deleted_at.is_(None),
+            Creance.statut.in_(_OUTSTANDING_STATUSES),
+            Creance.montant_restant > 0,
+        )
+        if boutique_id is not None:
+            stmt = stmt.where(Creance.boutique_id == boutique_id)
+        creances = (await self.db.execute(stmt)).scalars().all()
+
+        now = datetime.now(UTC).replace(tzinfo=None)
+        buckets = {
+            "0-30": Decimal("0"), "31-60": Decimal("0"),
+            "61-90": Decimal("0"), "90+": Decimal("0"),
+        }
+        for c in creances:
+            reference_date = c.date_echeance or c.created_at
+            age_days = (now - reference_date).days if reference_date else 0
+            amount = Decimal(c.montant_restant)
+            if age_days <= 30:
+                buckets["0-30"] += amount
+            elif age_days <= 60:
+                buckets["31-60"] += amount
+            elif age_days <= 90:
+                buckets["61-90"] += amount
+            else:
+                buckets["90+"] += amount
+        return [{"tranche": k, "montant": v} for k, v in buckets.items()]
+
     async def flag_overdue(self) -> tuple[int, int]:
         """Flip every créance whose échéance has passed (and still has a
         balance) to EN_RETARD, notifying the boutique's gérant and the Boss
@@ -101,7 +207,12 @@ class CreanceService(CRUDService[Creance]):
         matches the query below, so it's never re-notified on a later run —
         the state transition itself is the one-time trigger, no separate
         dedup log needed (unlike stock alerts, which can re-trigger at the
-        same threshold). Returns (overdue_count, notifications_sent)."""
+        same threshold). Returns (overdue_count, notifications_sent).
+
+        This IS the "relance automatique" of §8.2 — becoming overdue counts
+        as one relance (derniere_relance_at/nombre_relances), same fields a
+        manual relance (record_relance) updates, so the créance's relance
+        history always reflects the latest reminder regardless of source."""
         now = datetime.now(UTC).replace(tzinfo=None)
         result = await self.db.execute(
             select(Creance).where(
@@ -118,6 +229,8 @@ class CreanceService(CRUDService[Creance]):
 
         for creance in overdue:
             creance.statut = CreanceStatut.en_retard
+            creance.derniere_relance_at = now
+            creance.nombre_relances += 1
             self.db.add(creance)
 
             client = await self.db.get(Client, creance.client_id)

@@ -57,6 +57,14 @@ class VenteRead(EntityRead):
     statut: VenteStatut
     montant_paye: Decimal
     montant_restant: Decimal
+    numero_proforma: str | None
+    numero_facture: str | None
+    proforma_valide_jusquau: datetime | None
+    proforma_refus_motif: str | None
+    proforma_refused_by: int | None
+    proforma_refused_at: datetime | None
+    facture_by: int | None
+    facture_at: datetime | None
     livraison_statut: VenteLivraisonStatut
     numero_bon_livraison: str | None
     livree_at: datetime | None
@@ -68,6 +76,45 @@ class VenteRead(EntityRead):
     # on the list endpoint; unset (None) on get/create/void, where the
     # frontend already resolves the store name itself.
     store_name: str | None = None
+
+
+# ── Proforma (devis) schemas — cahier des charges §9.1-§9.3 ─────────────────────
+# A proforma never carries paiements (it "n'impacte pas le stock" — §9.1, and
+# by construction no payment is ever taken against a mere quote either): the
+# only fields that exist are the ones needed to price the devis.
+
+class VenteProformaCreate(BaseModel):
+    boutique_id: int
+    client_id: int | None = None
+    remise: Decimal = Field(default=Decimal("0"), ge=0)
+    lignes: list[VenteLigneCreate] = Field(min_length=1)
+    # Validity window (§9.1: "durée de validité paramétrable, au-delà de
+    # laquelle elle expire automatiquement") — defaults to a week.
+    validite_jours: int = Field(default=7, ge=1, le=90)
+
+
+class VenteProformaUpdate(BaseModel):
+    """Re-price a still-open proforma after client negotiation (§9.2) —
+    replaces the lines and/or the global remise wholesale; only valid while
+    `statut == proforma` and not expired."""
+
+    remise: Decimal | None = Field(default=None, ge=0)
+    lignes: list[VenteLigneCreate] | None = Field(default=None, min_length=1)
+
+
+class VenteProformaReject(BaseModel):
+    motif: str = Field(min_length=1, max_length=500)
+
+
+class VenteTransformRequest(BaseModel):
+    """Turns an open proforma into the facture définitive (§9.3) — same
+    document/dossier, a new official invoice number, and (§9.3/§7.3) the
+    moment stock actually leaves. Payment is optional here — §9.4 explicitly
+    allows collecting it "au moment de la facturation définitive (ou
+    après)", so an empty list just leaves the whole amount as a créance."""
+
+    paiements: list[VentePaiementCreate] = Field(default_factory=list)
+    livraison_statut: VenteLivraisonStatut = VenteLivraisonStatut.livre
 
 # ── Return schemas ─────────────────────────────────────────────────────────────
 

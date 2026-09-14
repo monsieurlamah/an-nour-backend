@@ -125,17 +125,6 @@ Convention de statut : permission manquante → **403**. Ressource existante mai
 | POST | /transfer | `stock.store.manage` OU `stock.central.manage` | Boutique (from **et** to dans le scope, sinon HQ requis) |
 | GET | /movements | `stock.view` | Boutique |
 
-## achat (`/api/v1/achats`) — central/HQ, aucune dimension boutique
-| Méthode | Route | Permission | Scope |
-|---|---|---|---|
-| GET | /suppliers | `suppliers.view` | HQ |
-| POST/PATCH/DELETE | /suppliers(/{id}) | `suppliers.manage` | HQ |
-| GET | "" | `purchases.view` | HQ |
-| POST | "" | `purchases.manage` | HQ |
-| GET | /{id} | `purchases.view` | HQ |
-| PATCH | /{id}/status | `purchases.manage` | HQ |
-| DELETE | /{id} | `purchases.manage` | HQ |
-
 ## expenses (`/api/v1/expenses`)
 | Méthode | Route | Permission | Scope |
 |---|---|---|---|

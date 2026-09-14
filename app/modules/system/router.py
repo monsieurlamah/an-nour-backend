@@ -1,12 +1,14 @@
 """HTTP routes for the system module: settings, activity logs, attachments."""
 
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.deps import CurrentUser, DbSession
-from app.core.authz import require_permission
+from app.core.authz import UserStoreScope, require_permission
 from app.database.enums import ReferenceType
+from app.modules.common.store_scope import resolve_list_scope
 from app.modules.system.schemas import (
     ActivityLogCreate,
     ActivityLogRead,
@@ -92,20 +94,33 @@ async def delete_setting(
 
 
 # --- Activity logs ---------------------------------------------------------------
+# Cahier des charges §14 — "Les journaux sont... consultables avec filtres
+# (boutique, utilisateur, période, type d'action) par le propriétaire ;
+# chaque gérant ne consulte que le journal de sa propre boutique." HQ-scoped
+# callers (super-admin/fournisseur) may filter to one boutique or see
+# everything; a store-scoped caller is force-narrowed to their own store(s)
+# regardless of what they pass, via resolve_list_scope — same pattern used
+# by every other store-scoped list endpoint in this codebase.
 @router.get("/activity-logs", response_model=list[ActivityLogRead])
 async def list_activity_logs(
     db: DbSession,
     _: CurrentUser,
-    _perm: Annotated[None, Depends(require_permission("settings.manage"))],
+    _perm: Annotated[None, Depends(require_permission("logs.view"))],
+    scope: UserStoreScope,
     user_id: int | None = Query(default=None),
     module: str | None = Query(default=None),
+    boutique_id: int | None = Query(default=None),
+    date_from: datetime | None = Query(default=None),
+    date_to: datetime | None = Query(default=None),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
 ) -> list[ActivityLogRead]:
-    items = await ActivityLogService(db).list(
-        skip=skip, limit=limit, user_id=user_id, module=module
+    items = await ActivityLogService(db).list_enriched(
+        skip=skip, limit=limit, user_id=user_id, module=module,
+        boutique_id=resolve_list_scope(boutique_id, scope),
+        date_from=date_from, date_to=date_to,
     )
-    return list(items)  # type: ignore[return-value]
+    return items  # type: ignore[return-value]
 
 
 @router.post("/activity-logs", response_model=ActivityLogRead, status_code=status.HTTP_201_CREATED)

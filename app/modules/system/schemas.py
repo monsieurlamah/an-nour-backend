@@ -39,6 +39,7 @@ class ActivityLogCreate(BaseModel):
     module: str | None = Field(default=None, max_length=80)
     reference_type: ReferenceType | None = None
     reference_id: int | None = None
+    boutique_id: int | None = None
     ip_address: str | None = Field(default=None, max_length=45)
     user_agent: str | None = Field(default=None, max_length=512)
 
@@ -49,8 +50,13 @@ class ActivityLogRead(LogRead):
     module: str | None
     reference_type: ReferenceType | None
     reference_id: int | None
+    boutique_id: int | None = None
     ip_address: str | None
     user_agent: str | None
+    # Denormalized for the frontend Journal page — never persisted, filled
+    # in by the router from a bulk user lookup (same pattern as
+    # CreanceService.list_enriched) so it doesn't need its own join per row.
+    user_name: str | None = None
 
 
 # --- Attachments -------------------------------------------------------------
