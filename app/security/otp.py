@@ -3,6 +3,7 @@
 Codes are never stored in clear text: only a keyed HMAC-SHA256 digest is kept,
 so a database leak does not expose valid codes. Verification is constant-time.
 """
+from __future__ import annotations
 
 import hashlib
 import hmac

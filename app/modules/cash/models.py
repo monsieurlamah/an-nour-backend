@@ -1,4 +1,5 @@
 """Cash register ORM models: cash sessions and cash movements."""
+from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal

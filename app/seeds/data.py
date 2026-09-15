@@ -3,6 +3,7 @@
 Edit these structures to evolve the RBAC matrix; the seed runner is idempotent
 and reconciles the database to match this file (creating what's missing).
 """
+from __future__ import annotations
 
 from app.database.enums import SettingType
 

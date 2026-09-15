@@ -1,4 +1,5 @@
 """Centralised logging configuration."""
+from __future__ import annotations
 
 import logging
 from logging.config import dictConfig

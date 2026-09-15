@@ -4,6 +4,7 @@ After every stock mutation, call ``StockAlertService(db).check_and_notify(stock)
 to detect LOW_STOCK / OUT_OF_STOCK conditions and dispatch emails. The check is
 wrapped so that any failure is logged but never propagates to the caller.
 """
+from __future__ import annotations
 
 from datetime import date
 

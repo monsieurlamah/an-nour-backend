@@ -1,4 +1,5 @@
 """Stock ORM models: locations, per-location product stocks, and stock movements."""
+from __future__ import annotations
 
 from decimal import Decimal
 

@@ -1,4 +1,5 @@
 """Pydantic schemas for the commandes module (internal réappro workflow)."""
+from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal

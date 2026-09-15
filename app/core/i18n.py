@@ -7,6 +7,7 @@ Usage:
 The current language is set per-request by the AcceptLanguageMiddleware in main.py.
 Default is "fr" (French) when no header is present.
 """
+from __future__ import annotations
 
 import contextvars
 from typing import Literal

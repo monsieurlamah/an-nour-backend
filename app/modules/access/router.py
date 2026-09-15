@@ -4,6 +4,7 @@ Every route here manages the RBAC model itself (who can do what) — the most
 sensitive module in the platform. All of it requires ``access.manage``,
 enforced once at the router level rather than repeated per route.
 """
+from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 

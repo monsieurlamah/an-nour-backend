@@ -1,4 +1,5 @@
 """Business logic for the stock module."""
+from __future__ import annotations
 
 from fastapi import HTTPException, status
 from sqlalchemy import select

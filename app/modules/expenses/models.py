@@ -1,4 +1,5 @@
 """Expense ORM models: expense categories and expenses."""
+from __future__ import annotations
 
 from decimal import Decimal
 

@@ -1,4 +1,5 @@
 """Pydantic schemas for authentication."""
+from __future__ import annotations
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 

@@ -3,6 +3,7 @@
 Catalog entities have no store dimension — they're shared across the whole
 network — so only permission checks apply here, no store scope.
 """
+from __future__ import annotations
 
 from typing import Annotated
 

@@ -3,6 +3,7 @@
 Subclass it and set ``model`` to get list/get/create/update/delete for free,
 with automatic soft-delete handling when the model exposes ``deleted_at``.
 """
+from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import Any, Generic, TypeVar

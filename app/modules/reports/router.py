@@ -1,4 +1,5 @@
 """HTTP routes for the Reports module."""
+from __future__ import annotations
 
 from typing import Annotated
 

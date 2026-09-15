@@ -8,6 +8,7 @@ Variables .env requises :
     CLOUDINARY_FOLDER      = lamahetvous   (optionnel, déjà défini)
     UPLOAD_MAX_BYTES       = 10485760      (optionnel, 10 Mo par défaut)
 """
+from __future__ import annotations
 
 import io
 from typing import Annotated

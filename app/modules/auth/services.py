@@ -7,6 +7,7 @@ immediately — see that router's ``create_user``. This module only handles
 login, token refresh, and an existing user's own password recovery
 (forgot/reset-password, via the same one-time-code table under a
 different ``purpose``)."""
+from __future__ import annotations
 
 import secrets
 from datetime import UTC, datetime, timedelta

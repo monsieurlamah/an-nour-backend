@@ -1,4 +1,5 @@
 """System ORM models: activity logs, settings, attachments."""
+from __future__ import annotations
 
 from sqlalchemy import Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column

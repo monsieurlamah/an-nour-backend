@@ -1,4 +1,5 @@
 """Creance ORM models: customer debts and payments."""
+from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal

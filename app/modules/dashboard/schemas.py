@@ -1,4 +1,5 @@
 """Pydantic schemas for the Dashboard module."""
+from __future__ import annotations
 
 from decimal import Decimal
 

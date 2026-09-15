@@ -4,6 +4,7 @@ Sending is blocking (smtplib), so it is executed in a worker thread via
 ``asyncio.to_thread`` to avoid blocking the event loop. Configuration comes from
 the application settings (SMTP_HOST/PORT/SSL, EMAIL, EMAIL_PASS).
 """
+from __future__ import annotations
 
 import asyncio
 import smtplib

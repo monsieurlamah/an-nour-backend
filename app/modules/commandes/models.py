@@ -5,6 +5,7 @@ Nothing here ever touches ``ProductStock`` directly — see
 ``CommandeService.confirm_reception`` (services.py) for the one and only
 place stock actually moves, and only after the boutique confirms receipt.
 """
+from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal

@@ -1,4 +1,5 @@
 """Aggregates all v1 module routers under a single API router."""
+from __future__ import annotations
 
 from fastapi import APIRouter
 

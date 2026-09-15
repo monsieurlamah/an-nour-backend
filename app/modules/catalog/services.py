@@ -1,4 +1,5 @@
 """Business logic for the catalog module."""
+from __future__ import annotations
 
 from app.modules.catalog.models import CategoryProduct, CategoryStore, Product
 from app.modules.common.crud import CRUDService

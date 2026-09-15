@@ -5,6 +5,7 @@ Models must import ``Base`` from here and compose the reusable mixins from
 migrations, every model module is imported lazily in
 ``app.database.session.init_models`` (avoids circular imports).
 """
+from __future__ import annotations
 
 from datetime import datetime
 

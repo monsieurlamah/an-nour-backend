@@ -8,6 +8,7 @@ moves inside ``confirm_reception``, via ``StockSaleService.receive_transfer``,
 and only for the quantity received at that specific event (never the
 cumulative total) so a later complementary delivery can't double-credit.
 """
+from __future__ import annotations
 
 from collections.abc import Sequence
 from decimal import Decimal

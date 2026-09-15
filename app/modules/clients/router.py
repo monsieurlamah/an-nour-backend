@@ -1,4 +1,5 @@
 """HTTP routes for the clients module."""
+from __future__ import annotations
 
 from typing import Annotated
 

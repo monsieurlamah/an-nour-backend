@@ -1,4 +1,5 @@
 """HTTP routes for the expenses module: categories and expenses."""
+from __future__ import annotations
 
 from datetime import date
 from typing import Annotated

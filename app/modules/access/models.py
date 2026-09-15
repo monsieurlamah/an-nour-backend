@@ -11,6 +11,7 @@ Access model:
 Improvement vs. the original spec: ``group_permissions`` was added so groups can
 actually own permissions (otherwise group-based access could not be enforced).
 """
+from __future__ import annotations
 
 from sqlalchemy import Boolean, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column

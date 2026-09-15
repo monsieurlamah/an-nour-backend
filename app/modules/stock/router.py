@@ -1,4 +1,5 @@
 """HTTP routes for the stock module: locations, product stocks, movements, and operations."""
+from __future__ import annotations
 
 from typing import Annotated
 

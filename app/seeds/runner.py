@@ -10,6 +10,7 @@ Reconciles the database with the declarations in ``app.seeds.data``:
 Safe to run multiple times: existing rows are matched by their natural key
 (slug / key / email) and created only when missing.
 """
+from __future__ import annotations
 
 import asyncio
 

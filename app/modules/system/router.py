@@ -1,4 +1,5 @@
 """HTTP routes for the system module: settings, activity logs, attachments."""
+from __future__ import annotations
 
 from datetime import datetime
 from typing import Annotated

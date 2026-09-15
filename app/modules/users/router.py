@@ -1,4 +1,5 @@
 """HTTP routes for the users module."""
+from __future__ import annotations
 
 import secrets
 import string

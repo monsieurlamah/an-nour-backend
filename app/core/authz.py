@@ -11,6 +11,7 @@ Permissions are recomputed from the database on every request — never
 cached in the JWT — so revoking a permission or removing a user from a
 group takes effect on their very next request, no re-login required.
 """
+from __future__ import annotations
 
 from collections.abc import Callable
 from typing import Annotated, Literal

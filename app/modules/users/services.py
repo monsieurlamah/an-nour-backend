@@ -1,4 +1,5 @@
 """Business logic for the users module."""
+from __future__ import annotations
 
 from collections.abc import Sequence
 

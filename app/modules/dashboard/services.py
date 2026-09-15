@@ -11,6 +11,7 @@ so the same SQL runs against SQLite in unit tests too, and so a caller-chosen
 custom period (date_from/date_to) is just a different pair of bounds instead
 of a second code path.
 """
+from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 from decimal import Decimal

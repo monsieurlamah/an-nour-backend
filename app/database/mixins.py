@@ -8,6 +8,7 @@ Conventions applied across the whole schema:
 - ``created_at`` / ``updated_at`` : managed by the database.
 - ``deleted_at``  : soft-delete marker (NULL = not deleted).
 """
+from __future__ import annotations
 
 import uuid as uuid_lib
 from datetime import datetime

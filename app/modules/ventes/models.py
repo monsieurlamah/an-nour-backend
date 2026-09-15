@@ -1,4 +1,5 @@
 """Vente ORM models: sales, lines, returns and refunds."""
+from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal

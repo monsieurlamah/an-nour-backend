@@ -1,4 +1,5 @@
 """Auth ORM models: email verification one-time codes."""
+from __future__ import annotations
 
 from datetime import datetime
 

@@ -1,4 +1,5 @@
 """Business logic for the stores module."""
+from __future__ import annotations
 
 from sqlalchemy import select
 

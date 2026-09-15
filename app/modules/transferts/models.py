@@ -8,6 +8,7 @@ Nothing here ever touches ``ProductStock`` directly — see
 ``TransfertService.receive`` (credits the destination) in services.py for
 the only two places stock actually moves.
 """
+from __future__ import annotations
 
 from datetime import datetime
 

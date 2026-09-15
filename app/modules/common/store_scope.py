@@ -11,6 +11,7 @@ Convention: a missing permission is a 403 (checked separately by
 caller's store scope is masked as a 404 — never confirm the existence of a
 resource outside your own boutique.
 """
+from __future__ import annotations
 
 from fastapi import HTTPException, status
 

@@ -1,4 +1,5 @@
 """HTTP routes for the commandes module (internal réappro workflow)."""
+from __future__ import annotations
 
 from typing import Annotated
 

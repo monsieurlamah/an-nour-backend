@@ -1,4 +1,5 @@
 """Store ORM models: stores and per-store user/role assignments."""
+from __future__ import annotations
 
 from decimal import Decimal
 

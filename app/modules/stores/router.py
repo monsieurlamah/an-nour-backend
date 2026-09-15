@@ -1,4 +1,5 @@
 """HTTP routes for the stores module: stores and store-user assignments."""
+from __future__ import annotations
 
 from typing import Annotated
 

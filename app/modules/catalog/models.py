@@ -1,4 +1,5 @@
 """Catalog ORM models: product categories, products, store categories."""
+from __future__ import annotations
 
 from decimal import Decimal
 

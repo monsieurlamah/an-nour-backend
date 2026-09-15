@@ -3,6 +3,7 @@
 Uses pydantic-settings so every value is validated and typed. Never hardcode
 secrets here — provide them through the environment / .env file.
 """
+from __future__ import annotations
 
 from functools import lru_cache
 from typing import Annotated, Literal

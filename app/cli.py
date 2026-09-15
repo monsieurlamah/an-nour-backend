@@ -1,4 +1,5 @@
 """Console entrypoints exposed via Poetry scripts (e.g. ``poetry run dev``)."""
+from __future__ import annotations
 
 import asyncio
 import subprocess

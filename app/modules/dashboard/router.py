@@ -1,4 +1,5 @@
 """HTTP routes for the Dashboard module."""
+from __future__ import annotations
 
 from datetime import date
 from typing import Annotated

@@ -1,4 +1,5 @@
 """Pydantic schemas for the transferts module (cahier des charges §7.4/§12)."""
+from __future__ import annotations
 
 from datetime import datetime
 

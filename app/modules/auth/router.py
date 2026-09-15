@@ -1,4 +1,5 @@
 """Authentication routes: register, verify-email, resend-otp, login, refresh, me."""
+from __future__ import annotations
 
 from typing import Annotated
 

@@ -1,4 +1,5 @@
 """HTTP routes for the creances module: debts and payments."""
+from __future__ import annotations
 
 from typing import Annotated
 

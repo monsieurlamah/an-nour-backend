@@ -13,6 +13,7 @@ MySQL's driver returns real ``datetime`` objects, SQLite's returns ISO
 strings, but both stringify with "YYYY-MM-DD" first, which ``_as_date``
 relies on).
 """
+from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 from decimal import Decimal

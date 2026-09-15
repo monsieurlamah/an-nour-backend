@@ -1,4 +1,5 @@
 """HTTP routes for the cash module: sessions and movements."""
+from __future__ import annotations
 
 from typing import Annotated
 

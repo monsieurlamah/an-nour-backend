@@ -1,4 +1,5 @@
 """Password hashing utilities using bcrypt directly (no passlib dependency)."""
+from __future__ import annotations
 
 import re
 

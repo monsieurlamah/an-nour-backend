@@ -3,6 +3,7 @@
 All enums subclass ``str`` so they serialise cleanly through Pydantic/JSON and
 are stored as VARCHAR (``native_enum=False``) in MySQL.
 """
+from __future__ import annotations
 
 import enum
 
