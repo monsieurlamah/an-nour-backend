@@ -25,6 +25,17 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "A user with this phone number already exists",
         "fr": "Un utilisateur avec ce numéro de téléphone existe déjà",
     },
+    "self_registration_disabled": {
+        "en": "Self-registration is disabled. Contact an administrator to get an account.",
+        "fr": "L'auto-inscription est désactivée. Contactez un administrateur pour obtenir "
+        "un compte.",
+    },
+    "user_has_no_email": {
+        "en": "This user has no email address. Communicate the identifiant and "
+        "password to them directly.",
+        "fr": "Cet utilisateur n'a pas d'adresse e-mail. Communiquez-lui son "
+        "identifiant et son mot de passe directement.",
+    },
     "user_not_found": {
         "en": "User not found",
         "fr": "Utilisateur introuvable",

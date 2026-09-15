@@ -1,7 +1,8 @@
-"""Tests for the two per-boutique/per-client business caps added to close
-cahier des charges gaps:
+"""Tests for the per-boutique/per-client/per-produit business caps added to
+close cahier des charges gaps:
   §9.2 — taux de remise maximum autorisé, paramétrable par boutique.
   §8.1 — plafond de créance autorisé par client, avec blocage au-delà.
+  §8.1 (extension) — plafond de crédit optionnel par produit, par ligne.
 """
 
 from decimal import Decimal
@@ -9,7 +10,12 @@ from decimal import Decimal
 import pytest
 from fastapi import HTTPException
 
-from app.modules.ventes.schemas import VenteCreate, VenteLigneCreate, VenteProformaCreate
+from app.modules.ventes.schemas import (
+    VenteCreate,
+    VenteLigneCreate,
+    VentePaiementCreate,
+    VenteProformaCreate,
+)
 from app.modules.ventes.services import VenteService
 
 
@@ -181,3 +187,78 @@ async def test_zero_plafond_means_unrestricted(
     )
     vente = await VenteService(db).create(payload, user)
     assert vente.montant_restant == Decimal("999000")
+
+
+# ── §8.1 extension — plafond de crédit par produit (par ligne) ──────────────
+
+
+async def test_product_credit_ceiling_within_cap_accepted(
+    db, store, store_location, stocked_product, user, client_
+):
+    stocked_product.plafond_credit_ligne = Decimal("150000")
+    db.add(stocked_product)
+    await db.commit()
+
+    payload = VenteCreate(
+        boutique_id=store.id,
+        client_id=client_.id,
+        lignes=[_ligne(stocked_product, qty=1, price=Decimal("100000"))],
+        paiements=[],
+    )
+    vente = await VenteService(db).create(payload, user)
+    assert vente.montant_restant == Decimal("100000")
+
+
+async def test_product_credit_ceiling_over_cap_rejected(
+    db, store, store_location, stocked_product, user, client_
+):
+    """Rejected purely on the line's own amount vs. the product's cap —
+    independent of the client's own (unset here) plafond_credit."""
+    stocked_product.plafond_credit_ligne = Decimal("50000")
+    db.add(stocked_product)
+    await db.commit()
+
+    payload = VenteCreate(
+        boutique_id=store.id,
+        client_id=client_.id,
+        lignes=[_ligne(stocked_product, qty=1, price=Decimal("100000"))],
+        paiements=[],  # 100000 > 50000 product cap
+    )
+    with pytest.raises(HTTPException) as exc:
+        await VenteService(db).create(payload, user)
+    assert exc.value.status_code == 422
+    assert "plafond" in exc.value.detail.lower()
+    assert stocked_product.name in exc.value.detail
+
+
+async def test_product_credit_ceiling_ignored_on_cash_sale(
+    db, store, store_location, stocked_product, user, client_, open_cash_session
+):
+    """No balance left (montant_restant == 0) means no credit is actually
+    extended — the per-product cap only ever applies to a vente à crédit."""
+    stocked_product.plafond_credit_ligne = Decimal("10000")
+    db.add(stocked_product)
+    await db.commit()
+
+    payload = VenteCreate(
+        boutique_id=store.id,
+        client_id=client_.id,
+        lignes=[_ligne(stocked_product, qty=1, price=Decimal("100000"))],
+        paiements=[VentePaiementCreate(montant=Decimal("100000"))],
+    )
+    vente = await VenteService(db).create(payload, user)
+    assert vente.montant_restant == Decimal("0")
+
+
+async def test_no_product_ceiling_configured_is_unrestricted(
+    db, store, store_location, stocked_product, user, client_
+):
+    assert stocked_product.plafond_credit_ligne is None
+    payload = VenteCreate(
+        boutique_id=store.id,
+        client_id=client_.id,
+        lignes=[_ligne(stocked_product, qty=1, price=Decimal("500000"))],
+        paiements=[],
+    )
+    vente = await VenteService(db).create(payload, user)
+    assert vente.montant_restant == Decimal("500000")

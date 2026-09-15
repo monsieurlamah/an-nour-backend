@@ -42,6 +42,9 @@ class ProductCreate(BaseModel):
     images: list[str] | None = None
     prix_vente: Decimal = Field(default=Decimal("0"), ge=0)
     prix_achat: Decimal = Field(default=Decimal("0"), ge=0)
+    # Optional — NULL/omitted means unrestricted (same convention as
+    # Store.remise_max_percent). See Product.plafond_credit_ligne.
+    plafond_credit_ligne: Decimal | None = Field(default=None, ge=0)
     category_product_id: int | None = None
 
 
@@ -56,6 +59,7 @@ class ProductUpdate(BaseModel):
     images: list[str] | None = None
     prix_vente: Decimal | None = Field(default=None, ge=0)
     prix_achat: Decimal | None = Field(default=None, ge=0)
+    plafond_credit_ligne: Decimal | None = Field(default=None, ge=0)
     category_product_id: int | None = None
 
 
@@ -71,6 +75,7 @@ class ProductRead(EntityRead):
     images: list[str] | None
     prix_vente: Decimal
     prix_achat: Decimal
+    plafond_credit_ligne: Decimal | None
     category_product_id: int | None
     created_by: int | None
 

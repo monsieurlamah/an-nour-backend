@@ -24,6 +24,7 @@ from app.modules.access.models import Group, GroupPermission, Permission, UserGr
 from app.modules.expenses.models import ExpenseCategory
 from app.modules.system.models import Setting
 from app.modules.users.models import User
+from app.modules.users.services import UserService
 from app.security.password import hash_password
 from app.seeds import data
 
@@ -123,8 +124,12 @@ async def seed_superadmin(db: AsyncSession, groups: dict[str, Group]) -> None:
     ).scalar_one_or_none()
 
     if user is None:
+        identifiant = await UserService(db).generate_identifiant(
+            settings.FIRST_SUPERADMIN_FIRSTNAME, settings.FIRST_SUPERADMIN_LASTNAME
+        )
         user = User(
             email=email,
+            identifiant=identifiant,
             firstname=settings.FIRST_SUPERADMIN_FIRSTNAME,
             lastname=settings.FIRST_SUPERADMIN_LASTNAME,
             password=hash_password(settings.FIRST_SUPERADMIN_PASSWORD),

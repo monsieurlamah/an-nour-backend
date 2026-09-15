@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from app.database.enums import UserStatus
 from app.security.password import validate_password_strength
@@ -11,10 +11,17 @@ from app.security.password import validate_password_strength
 class UserBase(BaseModel):
     firstname: str = Field(min_length=1, max_length=120)
     lastname: str = Field(min_length=1, max_length=120)
-    email: EmailStr
+    # Optional — a user without an email logs in with the identifiant the
+    # super-admin generates for them instead (see UserCreate/UserRead.identifiant).
+    email: EmailStr | None = None
     phone: str | None = Field(default=None, max_length=30)
     address: str | None = Field(default=None, max_length=255)
     avatar: str | None = Field(default=None, max_length=512)
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _blank_email_to_none(cls, value: str | None) -> str | None:
+        return value or None
 
 
 class UserCreate(UserBase):
@@ -22,13 +29,23 @@ class UserCreate(UserBase):
     status: UserStatus = UserStatus.active
     is_activated: bool = True
     # When True the router sends a welcome email with the plain-text password
-    # and marks the account as must_change_password.
+    # and marks the account as must_change_password. Requires an email.
     send_credentials: bool = False
 
     @field_validator("password")
     @classmethod
     def _strong_password(cls, value: str) -> str:
         return validate_password_strength(value)
+
+    @model_validator(mode="after")
+    def _credentials_need_email(self) -> "UserCreate":
+        if self.send_credentials and self.email is None:
+            raise ValueError(
+                "Impossible d'envoyer les accès par e-mail : cet utilisateur n'a pas "
+                "d'adresse e-mail. Communiquez-lui son identifiant et son mot de passe "
+                "directement."
+            )
+        return self
 
 
 class UserUpdate(BaseModel):
@@ -42,6 +59,11 @@ class UserUpdate(BaseModel):
     status: UserStatus | None = None
     is_activated: bool | None = None
     must_change_password: bool | None = None
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _blank_email_to_none(cls, value: str | None) -> str | None:
+        return value or None
 
     @field_validator("password")
     @classmethod
@@ -65,7 +87,8 @@ class ChangePasswordRequest(BaseModel):
 class UserRead(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
-    email: str  # override: no format validation on output (accepts internal domains like .local)
+    email: str | None  # override: no format validation on output (e.g. internal .local domains)
+    identifiant: str
     id: int
     uuid: str
     status: UserStatus

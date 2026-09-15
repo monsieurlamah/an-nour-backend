@@ -115,7 +115,8 @@ async def _seed_boutique(db: AsyncSession) -> tuple[Store, StockLocation, User]:
     db.add(location)
 
     user = User(
-        firstname="QA", lastname="Reappro", email=f"{_unique('qa')}@test.local", password="hashed"
+        firstname="QA", lastname="Reappro", email=f"{_unique('qa')}@test.local",
+        identifiant=_unique("qa-reappro"), password="hashed",
     )
     db.add(user)
     await db.flush()
@@ -198,7 +199,8 @@ async def test_mysql_confirm_reception_concurrent_no_lost_update(mysql_db: Async
     store_a, location_a, gerant_a = await _seed_boutique(mysql_db)
     store_b, location_b, gerant_b = await _seed_boutique(mysql_db)
     boss = User(
-        firstname="QA", lastname="Boss", email=f"{_unique('boss')}@test.local", password="hashed"
+        firstname="QA", lastname="Boss", email=f"{_unique('boss')}@test.local",
+        identifiant=_unique("qa-boss"), password="hashed",
     )
     mysql_db.add(boss)
     await mysql_db.flush()

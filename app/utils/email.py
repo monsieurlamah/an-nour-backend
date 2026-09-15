@@ -101,7 +101,7 @@ async def send_otp_email(to: str, code: str, name: str | None = None) -> bool:
     return await send_email(to, subject, _otp_email_html(code, name), text)
 
 
-def _welcome_email_html(name: str, email: str, temp_password: str) -> str:
+def _welcome_email_html(name: str, email: str, identifiant: str, temp_password: str) -> str:
     login_url = f"{settings.FRONTEND_URL}/login"
     first_name = name.split()[0] if name else "là"
     return f"""\
@@ -151,6 +151,11 @@ def _welcome_email_html(name: str, email: str, temp_password: str) -> str:
           <p style="margin:0 0 3px;font-size:11px;font-weight:600;color:#9ca3af;
             text-transform:uppercase;letter-spacing:0.6px;">Email</p>
           <p style="margin:0;font-size:14px;font-weight:600;color:#111827;">{email}</p>
+        </div>
+        <div style="background:#ffffff;padding:16px 20px;border-bottom:1px solid #e5e7eb;">
+          <p style="margin:0 0 3px;font-size:11px;font-weight:600;color:#9ca3af;
+            text-transform:uppercase;letter-spacing:0.6px;">Identifiant</p>
+          <p style="margin:0;font-size:14px;font-weight:600;color:#111827;">{identifiant}</p>
         </div>
         <div style="background:#ffffff;padding:16px 20px;">
           <p style="margin:0 0 6px;font-size:11px;font-weight:600;color:#9ca3af;
@@ -474,15 +479,19 @@ async def send_stock_adjustment_email(
     return await send_email(to, subject, html, text)
 
 
-async def send_welcome_email(to: str, name: str, temp_password: str) -> bool:
+async def send_welcome_email(to: str, name: str, identifiant: str, temp_password: str) -> bool:
     """Send account credentials to a newly created user."""
     subject = "Bienvenue sur AN-NOUR — vos accès"
     text = (
         f"Bonjour {name},\n\n"
         f"Votre compte AN-NOUR a été créé.\n"
         f"Email : {to}\n"
+        f"Identifiant : {identifiant}\n"
         f"Mot de passe temporaire : {temp_password}\n\n"
+        "Vous pouvez vous connecter avec votre e-mail ou votre identifiant.\n"
         "Veuillez changer ce mot de passe à votre première connexion.\n\n"
         "Cordialement,\nAN-NOUR"
     )
-    return await send_email(to, subject, _welcome_email_html(name, to, temp_password), text)
+    return await send_email(
+        to, subject, _welcome_email_html(name, to, identifiant, temp_password), text
+    )

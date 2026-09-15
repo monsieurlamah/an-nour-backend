@@ -17,7 +17,16 @@ class User(Entity):
     phone: Mapped[str | None] = mapped_column(
         String(30), unique=True, index=True, nullable=True
     )
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    # Login credential #1 — optional (not every user has an email; the
+    # super-admin can create an account with only an identifiant).
+    email: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)
+    # Login credential #2 — always present, generated server-side from the
+    # user's name at creation time (see UserService.generate_identifiant)
+    # and communicated to the user directly by the super-admin. Login
+    # accepts either this or the email (AuthService.authenticate).
+    identifiant: Mapped[str] = mapped_column(
+        String(50), unique=True, index=True, nullable=False
+    )
     avatar: Mapped[str | None] = mapped_column(String(512), nullable=True)
     # Stores the bcrypt hash (never the plaintext).
     password: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -43,4 +52,4 @@ class User(Entity):
         return f"{self.firstname} {self.lastname}".strip()
 
     def __repr__(self) -> str:  # pragma: no cover
-        return f"<User id={self.id} email={self.email!r}>"
+        return f"<User id={self.id} identifiant={self.identifiant!r}>"

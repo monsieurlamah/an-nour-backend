@@ -97,7 +97,8 @@ async def _seed(db: AsyncSession) -> dict:
     db.add(stock)
 
     user = User(
-        firstname="QA", lastname="MySQL", email=f"{_unique('qa')}@test.local", password="hashed"
+        firstname="QA", lastname="MySQL", email=f"{_unique('qa')}@test.local",
+        identifiant=_unique("qa-mysql"), password="hashed",
     )
     db.add(user)
     await db.flush()

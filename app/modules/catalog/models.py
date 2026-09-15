@@ -34,6 +34,13 @@ class Product(Entity):
     images: Mapped[list | None] = mapped_column(JSON, nullable=True)
     prix_vente: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0, nullable=False)
     prix_achat: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=0, nullable=False)
+    # Optional, set by the super-admin/propriétaire — NULL means unrestricted
+    # (same convention as Store.remise_max_percent). When set, no single
+    # vente-à-crédit line for this product may exceed this amount, regardless
+    # of the client's own plafond_credit — see VenteService._finalize_facture.
+    plafond_credit_ligne: Mapped[Decimal | None] = mapped_column(
+        Numeric(14, 2), nullable=True
+    )
     category_product_id: Mapped[int | None] = mapped_column(
         ForeignKey("category_products.id", ondelete="SET NULL"), nullable=True, index=True
     )

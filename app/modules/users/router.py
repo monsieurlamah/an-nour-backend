@@ -95,20 +95,24 @@ async def create_user(
     await db.commit()
 
     await log_activity(
-        db, actor, f"Utilisateur créé — {user.full_name} ({user.email})", "users",
+        db, actor, f"Utilisateur créé — {user.full_name} ({user.identifiant})", "users",
         reference_type=ReferenceType.USER, reference_id=user.id,
     )
 
     if payload.send_credentials:
-        # Fire-and-forget: email is sent after the response is returned so the
-        # creation endpoint remains fast even when SMTP is slow.
+        # Guaranteed non-None here: UserCreate._credentials_need_email rejects
+        # send_credentials=True without an email at the schema level.
         email_to = user.email
         full_name = user.full_name
+        identifiant = user.identifiant
         logger.info("Queuing welcome email to %s", email_to)
+        # Fire-and-forget: email is sent after the response is returned so the
+        # creation endpoint remains fast even when SMTP is slow.
         background_tasks.add_task(
             send_welcome_email,
             to=email_to,
             name=full_name,
+            identifiant=identifiant,
             temp_password=plain_pw,
         )
 
@@ -162,7 +166,7 @@ async def delete_user(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=t("user_not_found"))
     await service.soft_delete(user)
     await log_activity(
-        db, actor, f"Utilisateur suspendu — {user.full_name} ({user.email})", "users",
+        db, actor, f"Utilisateur suspendu — {user.full_name} ({user.identifiant})", "users",
         reference_type=ReferenceType.USER, reference_id=user.id,
     )
 
@@ -234,6 +238,8 @@ async def send_user_credentials(
     user = await UserService(db).get(user_id)
     if user is None or user.deleted_at is not None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, t("user_not_found"))
+    if user.email is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, t("user_has_no_email"))
 
     temp_pw = _temp_password()
     user.password = hash_password(temp_pw)
@@ -250,5 +256,6 @@ async def send_user_credentials(
         send_welcome_email,
         to=user.email,
         name=user.full_name,
+        identifiant=user.identifiant,
         temp_password=temp_pw,
     )

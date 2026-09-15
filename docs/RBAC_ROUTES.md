@@ -177,6 +177,15 @@ Convention de statut : permission manquante → **403**. Ressource existante mai
 | POST | /activity-logs | — (CurrentUser) | Self *(sink de log, chaque utilisateur loggue sa propre activité)* |
 | GET/POST/DELETE | /attachments(/{id}) | `settings.manage` | HQ |
 
+## transferts (`/api/v1/transferts`) — inter-boutiques, indépendant du circuit commandes (boutique → central)
+| Méthode | Route | Permission | Scope |
+|---|---|---|---|
+| GET | "" | `transferts.view` | Boutique *(source OU destination)* |
+| POST | "" | `transferts.create` | Boutique *(source — création = expédition immédiate, §7.4, pas d'étape "expédier" séparée)* |
+| GET | /{id} | `transferts.view` | Boutique *(source OU destination)* |
+| POST | /{id}/receive | `transferts.receive` | Boutique *(destination uniquement)* |
+| POST | /{id}/cancel | `transferts.cancel` | Boutique *(source OU destination)* |
+
 ## upload (`/api/v1/upload`)
 | Méthode | Route | Permission | Scope |
 |---|---|---|---|

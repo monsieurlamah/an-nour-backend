@@ -76,8 +76,9 @@ PERMISSIONS: list[tuple[str, str, str]] = [
     ("logs.view", "system", "Consulter le journal d'activité"),
     # Transferts inter-boutiques (§7.4/§12)
     ("transferts.view", "transferts", "Consulter les transferts de marchandises"),
-    ("transferts.create", "transferts", "Créer un bon de transfert"),
-    ("transferts.expedier", "transferts", "Expédier un transfert"),
+    # Note: create() décrémente le stock source et expédie en une seule étape
+    # (§7.4) — il n'y a pas de permission "expedier" distincte.
+    ("transferts.create", "transferts", "Créer un bon de transfert (expédition immédiate)"),
     ("transferts.receive", "transferts", "Réceptionner un transfert"),
     ("transferts.cancel", "transferts", "Annuler un transfert"),
     # Caisse — annulation/correction d'un encaissement (§10)
@@ -130,7 +131,6 @@ GROUP_PERMISSIONS: dict[str, list[str]] = {
         "logs.view",
         "transferts.view",
         "transferts.create",
-        "transferts.expedier",
         "transferts.receive",
         "transferts.cancel",
         "cash.annuler",
@@ -169,7 +169,6 @@ GROUP_PERMISSIONS: dict[str, list[str]] = {
         "logs.view",
         "transferts.view",
         "transferts.create",
-        "transferts.expedier",
         "transferts.receive",
         "transferts.cancel",
     ],
@@ -235,7 +234,6 @@ GROUP_PERMISSIONS: dict[str, list[str]] = {
         "notifications.view",
         "transferts.view",
         "transferts.create",
-        "transferts.expedier",
         "transferts.receive",
     ],
     "livreur": [
@@ -244,7 +242,6 @@ GROUP_PERMISSIONS: dict[str, list[str]] = {
         "commandes.deliver",
         "notifications.view",
         "transferts.view",
-        "transferts.expedier",
     ],
 }
 

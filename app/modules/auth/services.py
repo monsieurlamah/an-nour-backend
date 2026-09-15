@@ -1,4 +1,12 @@
-"""Authentication business logic (with email-OTP verification)."""
+"""Authentication business logic.
+
+No self-service registration: an account is only ever created by a
+Super Admin / Boss via the Users module (``UserService.create``, wired
+through ``POST /users``), which activates and email-verifies it
+immediately — see that router's ``create_user``. This module only handles
+login, token refresh, and an existing user's own password recovery
+(forgot/reset-password, via the same one-time-code table under a
+different ``purpose``)."""
 
 import secrets
 from datetime import UTC, datetime, timedelta
@@ -243,8 +251,10 @@ class AuthService:
         await self.db.flush()
 
     # ----------------------------- login -----------------------------------
-    async def authenticate(self, email: str, password: str) -> User:
-        user = await self.users.get_by_email(email)
+    async def authenticate(self, identifier: str, password: str) -> User:
+        """``identifier`` is either the user's email or their identifiant —
+        login accepts both interchangeably (see UserService.get_by_login)."""
+        user = await self.users.get_by_login(identifier)
         if (
             user is None
             or user.deleted_at is not None
@@ -273,8 +283,8 @@ class AuthService:
             refresh_token=create_refresh_token(user.id),
         )
 
-    async def login(self, email: str, password: str) -> Token:
-        user = await self.authenticate(email, password)
+    async def login(self, identifier: str, password: str) -> Token:
+        user = await self.authenticate(identifier, password)
         user.last_login_at = utcnow()
         self.db.add(user)
         await self.db.flush()

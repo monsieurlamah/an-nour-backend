@@ -2,18 +2,17 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DbSession
+from app.core.i18n import t
 from app.modules.access.models import Group, UserGroup
 from app.modules.access.services import SUPER_ADMIN_SLUG, AccessService
 from app.modules.auth.schemas import (
     ForgotPasswordRequest,
     MessageResponse,
-    RegisterRequest,
-    RegisterResponse,
     ResendOtpRequest,
     ResetPasswordConfirm,
     Token,
@@ -26,13 +25,12 @@ from app.modules.users.schemas import UserMeRead
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
-async def register(payload: RegisterRequest, db: DbSession) -> RegisterResponse:
-    user = await AuthService(db).register(payload)
-    return RegisterResponse(
-        message="Un code de vérification a été envoyé à votre adresse e-mail.",
-        email=user.email,
-    )
+@router.post("/register")
+async def register() -> None:
+    """Self-registration is disabled — only a super-admin can create user
+    accounts (POST /users). Kept as a stub, rather than removed, so the
+    route can be re-enabled later without a client-facing API change."""
+    raise HTTPException(status.HTTP_403_FORBIDDEN, detail=t("self_registration_disabled"))
 
 
 @router.post("/verify-email", response_model=Token)
@@ -62,7 +60,8 @@ async def login(
     db: DbSession,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> Token:
-    # OAuth2 form uses ``username`` — we treat it as the email.
+    # OAuth2 form uses ``username`` — we accept either the email or the
+    # identifiant there (AuthService.authenticate resolves whichever it is).
     return await AuthService(db).login(form_data.username, form_data.password)
 
 

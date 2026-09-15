@@ -39,6 +39,7 @@ from app.database.enums import (
 from app.modules.cash.models import CashSession
 from app.modules.cash.schemas import CashMovementCreate
 from app.modules.cash.services import CashMovementService
+from app.modules.catalog.models import Product
 from app.modules.clients.models import Client
 from app.modules.creances.schemas import CreanceCreate, PaiementCreate
 from app.modules.creances.services import CreanceService, PaiementService
@@ -128,6 +129,27 @@ class VenteService:
                 f"autorisé pour cette boutique ({cap:.0f} %). Un dépassement doit être "
                 "validé par le propriétaire.",
             )
+
+    async def _check_product_credit_ceilings(self, lignes: Sequence[VenteLigne]) -> None:
+        """Cahier des charges §8.1 extension — on top of the client-wide
+        plafond_credit, the super-admin can optionally cap how much of a
+        given product may go out on credit in a single line
+        (Product.plafond_credit_ligne, NULL by default = unrestricted).
+        Checked against the line's own total, independently of how much of
+        the overall vente is actually covered by payments — as soon as any
+        balance remains on the sale, every line is subject to its product's
+        cap."""
+        for ligne in lignes:
+            product = await self.db.get(Product, ligne.produit_id)
+            if product is None or product.plafond_credit_ligne is None:
+                continue
+            if ligne.total_ligne > product.plafond_credit_ligne:
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    f"Le montant à crédit pour « {product.name} » ({ligne.total_ligne} GNF) "
+                    f"dépasse le plafond autorisé pour ce produit "
+                    f"({product.plafond_credit_ligne} GNF).",
+                )
 
     async def get(self, vente_id: int) -> Vente | None:
         vente = await self.db.get(Vente, vente_id)
@@ -635,6 +657,7 @@ class VenteService:
             client = await self.db.get(Client, vente.client_id)
             if client is not None:
                 await CreanceService(self.db).check_credit_ceiling(client, montant_restant)
+            await self._check_product_credit_ceilings(vente.lignes)
 
         stock_service = StockSaleService(self.db)
         for ligne in vente.lignes:

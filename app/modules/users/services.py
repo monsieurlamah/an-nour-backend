@@ -12,7 +12,7 @@ from app.modules.stores.models import StoreUser
 from app.modules.users.models import User
 from app.modules.users.schemas import ChangePasswordRequest, UserCreate, UserUpdate
 from app.security.password import hash_password, verify_password
-from app.utils.helpers import normalize_email, normalize_phone
+from app.utils.helpers import normalize_email, normalize_phone, slugify
 
 
 class UserService:
@@ -28,12 +28,45 @@ class UserService:
         )
         return result.scalar_one_or_none()
 
+    async def get_by_identifiant(self, identifiant: str) -> User | None:
+        result = await self.db.execute(
+            select(User).where(User.identifiant == identifiant.strip().lower())
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_login(self, identifier: str) -> User | None:
+        """Resolve a login field that may be either the email or the
+        identifiant — the two credentials login() accepts interchangeably."""
+        identifier = identifier.strip()
+        if not identifier:
+            return None
+        result = await self.db.execute(
+            select(User).where(
+                or_(
+                    User.email == normalize_email(identifier),
+                    User.identifiant == identifier.lower(),
+                )
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def get_by_phone(self, phone: str) -> User | None:
         normalized = normalize_phone(phone)
         if normalized is None:
             return None
         result = await self.db.execute(select(User).where(User.phone == normalized))
         return result.scalar_one_or_none()
+
+    async def generate_identifiant(self, firstname: str, lastname: str) -> str:
+        """Auto-generate a unique, human-communicable login id, e.g.
+        ``mamadou-diallo`` (then ``mamadou-diallo-2`` on collision)."""
+        base = slugify(f"{firstname} {lastname}")
+        candidate = base
+        suffix = 2
+        while await self.get_by_identifiant(candidate) is not None:
+            candidate = f"{base}-{suffix}"
+            suffix += 1
+        return candidate
 
     async def _ensure_email_available(
         self, email: str, *, exclude_id: int | None = None
@@ -92,6 +125,7 @@ class UserService:
                     User.firstname.ilike(pattern),
                     User.lastname.ilike(pattern),
                     User.email.ilike(pattern),
+                    User.identifiant.ilike(pattern),
                 )
             )
         result = await self.db.execute(
@@ -100,13 +134,16 @@ class UserService:
         return result.scalars().all()
 
     async def create(self, payload: UserCreate) -> User:
-        email = normalize_email(str(payload.email))
-        await self._ensure_email_available(email)
+        email = normalize_email(str(payload.email)) if payload.email else None
+        if email:
+            await self._ensure_email_available(email)
         phone = await self._ensure_phone_available(payload.phone)
+        identifiant = await self.generate_identifiant(payload.firstname, payload.lastname)
         user = User(
             firstname=payload.firstname,
             lastname=payload.lastname,
             email=email,
+            identifiant=identifiant,
             phone=phone,
             address=payload.address,
             avatar=payload.avatar,
