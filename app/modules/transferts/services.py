@@ -17,6 +17,7 @@ Every step also writes a StockMovement (reason=TRANSFERT — §7.3's "tout
 mouvement de stock... avec l'utilisateur à l'origine") and a central
 ActivityLog entry (§14) via TransfertService._log.
 """
+from __future__ import annotations
 
 from collections.abc import Sequence
 
